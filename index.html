@@ -1,0 +1,1113 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<link rel="icon" type="image/png" href="favicon.png">
+<link rel="shortcut icon" href="favicon.png">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>МедикСчёт — калькулятор кардиолога</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css?v=2">
+</head>
+
+<body>
+
+<header style="display: flex; justify-content: space-between; align-items: center;">
+  <span>❤️ МедикСчёт — калькулятор кардиолога</span>
+  <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+    <div class="mode-switch" id="modeSwitch" title="Режим работы">
+      <button type="button" class="mode-btn active" data-mode="emergency">🚑 Стационар</button>
+      <button type="button" class="mode-btn" data-mode="outpatient">🏥 Поликлиника</button>
+    </div>
+    <button id="themeToggle" title="Переключить тему">🌓</button>
+    <button id="helpOpenBtn" title="Инструкция">❓ Инструкция</button>
+    <button id="resetBtn" title="Сбросить все данные">🗑️ Сброс</button>
+    <div style="position: relative;">
+      <button id="demoToggle" title="Демонстрационные сценарии">🧪 Демо</button>
+      <div id="demoDropdown" style="display:none;">
+        <div class="demo-item" data-demo="acs">ОКС</div>
+        <div class="demo-item" data-demo="afib">ФП</div>
+        <div class="demo-item" data-demo="pe">ТЭЛА</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<div class="container">
+<div class="layout-wrapper">
+<aside class="sidebar-left">
+
+  <div class="card" id="analysisInputCard">
+    <div class="card-header">
+      🧪 Данные для анализа
+      <span class="badge">необязательно</span>
+    </div>
+    <div class="card-body">
+      <div class="analysis-note">
+        Дополнительные лабораторные показатели. Заполните вручную или подтяните из ЭМК.
+      </div>
+      <div class="input-grid">
+        <div class="input-group">
+          <label>КФК общая <span class="unit">Ед/л</span></label>
+          <input type="text" id="ck_total" placeholder="250">
+        </div>
+        <div class="input-group">
+          <label>КФК-МВ <span class="unit">Ед/л</span></label>
+          <input type="text" id="ck_mb" placeholder="38">
+        </div>
+        <div class="input-group">
+          <label>Натрий (Na) <span class="unit">ммоль/л</span></label>
+          <input type="text" id="na_measured" placeholder="135">
+        </div>
+        <div class="input-group">
+          <label>Глюкоза <span class="unit">ммоль/л</span></label>
+          <input type="text" id="glucose" placeholder="5.5">
+        </div>
+        <div class="input-group">
+          <label>Калий (K⁺) <span class="unit">ммоль/л</span></label>
+          <input type="text" id="potassium" placeholder="4.0">
+        </div>
+        <div class="input-group">
+          <label>Магний (Mg²⁺) <span class="unit">ммоль/л</span></label>
+          <input type="text" id="magnesium" placeholder="0.85">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card" id="analysisPanel" style="display:none;">
+    <div class="card-header">🧠 Анализ</div>
+    <div class="card-body">
+      <div id="analysisModules"></div>
+    </div>
+  </div>
+
+</aside>
+<main class="main-content">
+
+  <!-- ===== ВЫБОР ШКАЛ ===== -->
+  <div class="card">
+    <div class="card-header" style="display: flex; justify-content: space-between; align-items: center;">
+     <span>Активные шкалы и калькуляторы</span>
+     <div style="display: flex; gap: 8px;" id="scaleGroupBtns">
+       <button type="button" class="group-btn" data-group="acs">ОКС</button>
+       <button type="button" class="group-btn" data-group="afib">ФП</button>
+       <button type="button" class="group-btn" data-group="pe">ТЭЛА</button>
+       <button type="button" class="group-btn" id="clearScalesBtn" title="Очистить выбор">✕</button>
+     </div>
+    </div>
+    <div class="card-body">
+      <div class="scale-selector" id="scaleSelector">
+        <label class="scale-toggle active" id="toggle_ckdepi">
+          <input type="checkbox" id="scale_ckdepi" checked onchange="toggleScale('ckdepi',this)">CKD-EPI
+        </label>
+        <label class="scale-toggle active" id="toggle_cg">
+          <input type="checkbox" id="scale_cg" checked onchange="toggleScale('cg',this)">Кокрофт-Голт
+        </label>
+        <label class="scale-toggle active" id="toggle_grace">
+          <input type="checkbox" id="scale_grace" checked onchange="toggleScale('grace',this)">GRACE
+        </label>
+        <label class="scale-toggle active" id="toggle_crusade">
+          <input type="checkbox" id="scale_crusade" checked onchange="toggleScale('crusade',this)">CRUSADE
+        </label>
+        <label class="scale-toggle active" id="toggle_archbr">
+          <input type="checkbox" id="scale_archbr" checked onchange="toggleScale('archbr',this)">ARC-HBR
+        </label>
+        <label class="scale-toggle active" id="toggle_caprini">
+          <input type="checkbox" id="scale_caprini" checked onchange="toggleScale('caprini',this)">Caprini
+        </label>
+        <label class="scale-toggle active" id="toggle_precise">
+          <input type="checkbox" id="scale_precise" checked onchange="toggleScale('precise',this)">PRECISE-DAPT
+        </label>
+        <label class="scale-toggle active" id="toggle_hasbled">
+          <input type="checkbox" id="scale_hasbled" checked onchange="toggleScale('hasbled',this)">HAS-BLED
+        </label>
+        <label class="scale-toggle active" id="toggle_cha2ds2">
+          <input type="checkbox" id="scale_cha2ds2" checked onchange="toggleScale('cha2ds2',this)">CHA₂DS₂-VASc
+        </label>
+        <label class="scale-toggle active" id="toggle_pesi">
+          <input type="checkbox" id="scale_pesi" checked onchange="toggleScale('pesi',this)">PESI / sPESI (ТЭЛА)
+        </label>
+        <label class="scale-toggle active" id="toggle_wells">
+          <input type="checkbox" id="scale_wells" checked onchange="toggleScale('wells',this)">Wells (ТЭЛА)
+        </label>
+        <label class="scale-toggle active" id="toggle_geneva">
+          <input type="checkbox" id="scale_geneva" checked onchange="toggleScale('geneva',this)">Geneva (ТЭЛА)
+        </label>
+      </div>
+      <div class="scale-cb-hint" id="outpatientHint" style="display:none;margin-top:12px;padding:10px 12px;background:var(--blue-soft);border-left:3px solid var(--blue);border-radius:0 6px 6px 0;font-size:13px;line-height:1.5;">
+        🏥 Режим «Поликлиника»: здесь доступны шкалы для планового приёма. Стационарные шкалы (GRACE, CRUSADE, ARC-HBR, Caprini, PRECISE-DAPT, PESI, Wells, Geneva) в этом режиме скрыты и не участвуют в расчётах.
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== БЫСТРЫЙ ВВОД ИЗ ЭМК ===== -->
+  <div class="card">
+    <div class="card-header">
+      📥 Быстрый ввод из ЭМК
+      <span class="badge">вставьте таблицу или текст из Промед — данные заполнятся автоматически</span>
+      <button id="clearEmrBtn" title="Очистить поле">🗑️</button>
+    </div>
+    <div class="card-body">
+      <textarea id="emrPaste" rows="3" placeholder="Вставьте скопированный текст или таблицу анализов из Промед (Ctrl+V)..."></textarea>
+      <div id="emrStatus">⏳ Вставьте текст из ЭМК...</div>
+    </div>
+  </div>
+
+  <!-- ===== ОБЩИЕ ДАННЫЕ ===== -->
+  <div class="card">
+    <div class="card-header">Данные пациента <span class="badge">общие поля — вводятся один раз</span></div>
+    <div class="card-body">
+      <div class="scale-cb-hint" id="noScaleHint" style="display:none;margin-bottom:12px;padding:10px 12px;background:var(--orange-soft);border-left:3px solid var(--orange);border-radius:0 6px 6px 0;font-size:13px;line-height:1.5;">
+        Выберите хотя бы одну шкалу — тогда здесь появятся поля для ввода.
+      </div>
+      <div class="input-grid">
+
+        <div class="input-group field-age">
+          <label>Возраст <span class="unit">лет</span></label>
+          <input type="text" id="age" placeholder="65">
+        </div>
+
+
+
+        <div class="input-group field-sex">
+          <label>Пол</label>
+          <div class="sex-toggle-group">
+            <button type="button" class="sex-btn" data-sex="m">Мужской</button>
+            <button type="button" class="sex-btn" data-sex="f">Женский</button>
+          </div>
+          <input type="hidden" id="sex" value="">
+        </div>
+
+        <div class="input-group field-height">
+          <label>Рост <span class="unit">см</span></label>
+          <input type="text" id="height" placeholder="170">
+        </div>
+
+        <div class="input-group field-weight">
+          <label>Вес <span class="unit">кг</span></label>
+          <input type="text" id="weight" placeholder="75">
+        </div>
+
+        <div class="input-group field-sbp">
+          <label>Систолическое АД <span class="unit">мм рт.ст.</span></label>
+          <input type="text" id="sbp" placeholder="130">
+        </div>
+
+        <div class="input-group field-hr">
+          <label>ЧСС <span class="unit">уд/мин</span></label>
+          <input type="text" id="hr" placeholder="72">
+        </div>
+
+        <div class="input-group field-creat">
+          <label>Креатинин <span class="unit">мкмоль/л</span></label>
+          <input type="text" id="creatinine" placeholder="90">
+        </div>
+
+        <div class="input-group field-hb">
+          <label>Гемоглобин <span class="unit">г/л</span></label>
+          <input type="text" id="hb" placeholder="130">
+        </div>
+
+        <div class="input-group field-hct">
+          <label>Гематокрит <span class="unit">%</span></label>
+          <input type="text" id="hct" placeholder="40">
+        </div>
+
+        <div class="input-group field-plt">
+          <label>Тромбоциты <span class="unit">×10⁹/л</span></label>
+          <input type="text" id="plt" placeholder="200">
+        </div>
+
+      </div>
+
+      <div class="divider"></div>
+
+      <div class="checkbox-grid">
+
+        <label class="cb-item field-dm">
+          <input type="checkbox" id="cb_dm">
+          <div>
+            <div class="cb-label">Сахарный диабет</div>
+          </div>
+        </label>
+
+        <label class="cb-item field-hf">
+          <input type="checkbox" id="cb_hf">
+          <div>
+            <div class="cb-label">Сердечная недостаточность / застойные явления</div>
+          </div>
+        </label>
+
+        <label class="cb-item field-htn">
+          <input type="checkbox" id="cb_htn">
+          <div>
+            <div class="cb-label">АГ (диагностированная)</div>
+            <div class="cb-hint">Поставлен диагноз, даже если АД контролируется</div>
+          </div>
+        </label>
+
+        <label class="cb-item field-stroke">
+          <input type="checkbox" id="cb_stroke">
+          <div>
+            <div class="cb-label">Инсульт в анамнезе</div>
+            <div class="cb-hint">Ранее перенесённый инсульт; ТИА — отдельным пунктом ниже</div>
+          </div>
+        </label>
+
+        <label class="cb-item field-stroke">
+          <input type="checkbox" id="cb_tia">
+          <div>
+            <div class="cb-label">ТИА в анамнезе</div>
+            <div class="cb-hint">Транзиторная ишемическая атака</div>
+          </div>
+        </label>
+
+        <label class="cb-item field-embolism">
+          <input type="checkbox" id="cb_embolism">
+          <div>
+            <div class="cb-label">Системная (артериальная) эмболия в анамнезе</div>
+            <div class="cb-hint">Эмболия артерий большого круга (конечность, брыжейка, почка и др.). Это не ТГВ/ТЭЛА</div>
+          </div>
+        </label>
+
+        <label class="cb-item field-vte">
+          <input type="checkbox" id="cb_vte">
+          <div>
+            <div class="cb-label">ТГВ / ТЭЛА в анамнезе (венозные тромбоэмболии)</div>
+            <div class="cb-hint">Тромбоз глубоких вен и/или ТЭЛА в прошлом</div>
+          </div>
+        </label>
+
+        <label class="cb-item field-vasc">
+          <input type="checkbox" id="cb_vasc">
+          <div>
+            <div class="cb-label">Сосудистое заболевание в анамнезе</div>
+            <div class="cb-hint">ИМ в анамнезе, периферический атеросклероз (стентирование / шунтирование артерий ног), атеросклеротические бляшки по данным визуализации</div>
+          </div>
+        </label>
+
+        <label class="cb-item field-verapamil">
+          <input type="checkbox" id="cb_verapamil">
+          <div>
+            <div class="cb-label">Приём верапамила</div>
+            <div class="cb-hint">Влияет на дозировку дабигатрана (критерий снижения дозы)</div>
+          </div>
+        </label>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== GRACE ===== -->
+  <div class="scale-block" id="block_grace">
+    <div class="scale-block-header">⚡ GRACE 1.0 (баллы) + GRACE 2.0 (6‑мес. риск)</div>
+    <div class="scale-block-body">
+      <div class="section-label">Клинические данные при поступлении</div>
+
+      <div class="scale-select-group">
+        <label>Класс Killip</label>
+        <select id="grace_killip">
+          <option value="1">I — нет СН</option>
+          <option value="2">II — влажные хрипы, ↑ЦВД</option>
+          <option value="3">III — отёк лёгких</option>
+          <option value="4">IV — кардиогенный шок</option>
+        </select>
+      </div>
+
+      <div class="scale-cb-grid">
+        <label class="scale-cb-item">
+          <input type="checkbox" id="grace_arrest">
+          <span>Остановка сердца при поступлении</span>
+          <span class="pts">+39</span>
+        </label>
+        <label class="scale-cb-item">
+          <input type="checkbox" id="grace_st">
+          <span>Отклонение сегмента ST</span>
+          <span class="pts">+28</span>
+        </label>
+        <label class="scale-cb-item">
+          <input type="checkbox" id="grace_enzymes">
+          <span>Повышение кардиоспецифических маркёров (тропонин / КФК-МВ)</span>
+          <span class="pts">+14</span>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== CRUSADE ===== -->
+  <div class="scale-block" id="block_crusade">
+    <div class="scale-block-header">🩸 CRUSADE — риск внутрибольничного кровотечения при ОКС</div>
+    <div class="scale-block-body">
+      <div class="scale-cb-grid">
+        <label class="scale-cb-item auto-cb" id="crusade_auto_sex_row" style="display:none;">
+          <input type="checkbox" id="crusade_female" disabled>
+          <span>Женский пол <span class="auto-tag">авто</span></span>
+          <span class="pts">+8</span>
+        </label>
+        <label class="scale-cb-item auto-cb" id="crusade_auto_hf_row">
+          <input type="checkbox" id="crusade_hf" disabled>
+          <span>Признаки СН <span class="auto-tag">авто из общих</span></span>
+          <span class="pts">+7</span>
+        </label>
+        <label class="scale-cb-item auto-cb" id="crusade_auto_vasc_row">
+          <input type="checkbox" id="crusade_vasc" disabled>
+          <span>Предшествующее сосудистое заболевание <span class="auto-tag">авто из общих</span></span>
+          <span class="pts">+6</span>
+        </label>
+        <label class="scale-cb-item auto-cb" id="crusade_auto_dm_row">
+          <input type="checkbox" id="crusade_dm" disabled>
+          <span>Сахарный диабет <span class="auto-tag">авто из общих</span></span>
+          <span class="pts">+6</span>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== ARC-HBR ===== -->
+  <div class="scale-block" id="block_archbr">
+    <div class="scale-block-header">⚠️ ARC-HBR — высокий риск кровотечения при ЧКВ</div>
+    <div class="scale-block-body">
+
+      <div class="section-label">Большие критерии</div>
+      <div class="scale-cb-grid">
+
+        <label class="scale-cb-item">
+          <input type="checkbox" id="arc_oac">
+          <span>Ожидаемый длительный приём перорального антикоагулянта</span>
+        </label>
+
+        <label class="scale-cb-item auto-cb" id="arc_ckd_major_row">
+          <input type="checkbox" id="arc_ckd_major" disabled>
+          <span>Тяжёлая или терминальная ХБП (рСКФ &lt;30) <span class="auto-tag">авто</span></span>
+        </label>
+
+        <label class="scale-cb-item auto-cb" id="arc_hb_major_row">
+          <input type="checkbox" id="arc_hb_major" disabled>
+          <span>Гемоглобин &lt;110 г/л <span class="auto-tag">авто</span></span>
+        </label>
+
+        <label class="scale-cb-item">
+          <input type="checkbox" id="arc_bleed6m">
+          <span>Спонтанное кровотечение с госпитализацией/трансфузией за последние 6 мес. или рецидивирующее кровотечение любой давности</span>
+        </label>
+
+        <label class="scale-cb-item auto-cb" id="arc_plt_row">
+          <input type="checkbox" id="arc_plt" disabled>
+          <span>Тромбоцитопения &lt;100 ×10⁹/л <span class="auto-tag">авто</span></span>
+        </label>
+
+        <label class="scale-cb-item">
+          <input type="checkbox" id="arc_diathesis">
+          <span>Хронический геморрагический диатез</span>
+        </label>
+
+        <label class="scale-cb-item">
+          <input type="checkbox" id="arc_cirrhosis">
+          <span>Цирроз печени с портальной гипертензией</span>
+        </label>
+
+        <label class="scale-cb-item">
+          <input type="checkbox" id="arc_cancer">
+          <span>Активное злокачественное новообразование (кроме немеланомного рака кожи) за последние 12 мес.</span>
+          <span class="warning-icon" id="arc_cancer_warning" style="display:none; margin-left:6px; cursor:help;">⚠️</span>
+        </label>
+
+        <label class="scale-cb-item">
+          <input type="checkbox" id="arc_ich_spont">
+          <span>Спонтанное внутричерепное кровотечение в анамнезе (любой давности)</span>
+        </label>
+
+        <label class="scale-cb-item">
+          <input type="checkbox" id="arc_ich_trauma">
+          <span>Травматическое внутричерепное кровотечение за последние 12 мес.</span>
+        </label>
+
+        <label class="scale-cb-item">
+          <input type="checkbox" id="arc_avm">
+          <span>Артериовенозная мальформация головного мозга</span>
+        </label>
+
+        <label class="scale-cb-item">
+          <input type="checkbox" id="arc_stroke_severe">
+          <span>Тяжёлый или умеренный ишемический инсульт за последние 6 мес.</span>
+        </label>
+
+        <label class="scale-cb-item">
+          <input type="checkbox" id="arc_surgery30d">
+          <span>Большое хирургическое вмешательство или серьёзная травма за последние 30 дней</span>
+        </label>
+
+        <label class="scale-cb-item">
+          <input type="checkbox" id="arc_surgery_dapt">
+          <span>Неотложное большое хирургическое вмешательство у пациента на двойной антитромбоцитарной терапии</span>
+        </label>
+
+      </div>
+
+      <div class="section-label" style="margin-top:14px;">Малые критерии</div>
+      <div class="scale-cb-grid">
+
+        <label class="scale-cb-item auto-cb" id="arc_age75_row">
+          <input type="checkbox" id="arc_age75" disabled>
+          <span>Возраст ≥75 лет <span class="auto-tag">авто</span></span>
+        </label>
+
+        <label class="scale-cb-item auto-cb" id="arc_ckd_minor_row">
+          <input type="checkbox" id="arc_ckd_minor" disabled>
+          <span>Умеренная ХБП (рСКФ 30–59) <span class="auto-tag">авто</span></span>
+        </label>
+
+        <label class="scale-cb-item auto-cb" id="arc_hb_minor_row">
+          <input type="checkbox" id="arc_hb_minor" disabled>
+          <span>Гемоглобин 110–129 г/л (муж) / 110–119 г/л (жен) <span class="auto-tag">авто</span></span>
+        </label>
+
+        <label class="scale-cb-item">
+          <input type="checkbox" id="arc_bleed12m">
+          <span>Спонтанное кровотечение с госпитализацией за последние 12 мес. (не отвечающее большому критерию)</span>
+        </label>
+
+        <label class="scale-cb-item">
+          <input type="checkbox" id="arc_nsaid">
+          <span>Длительный приём НПВП или глюкокортикоидов</span>
+        </label>
+
+        <label class="scale-cb-item">
+          <input type="checkbox" id="arc_stroke_any">
+          <span>Любой ишемический инсульт (любой давности, не отвечающий большому критерию)</span>
+        </label>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== PRECISE-DAPT ===== -->
+  <div class="scale-block" id="block_precise">
+    <div class="scale-block-header">📉 PRECISE-DAPT — риск кровотечения при ДАТТ после ЧКВ</div>
+    <div class="scale-block-body">
+      <div class="scale-cb-hint" style="margin-bottom:10px;padding:8px 10px;background:var(--orange-soft);border-left:3px solid var(--orange);border-radius:0 6px 6px 0;font-size:12px;line-height:1.5;">
+        Используются общие данные: возраст, пол, вес, креатинин и гемоглобин (блок «Общие данные» выше).
+      </div>
+      <div style="display:flex; gap:16px; align-items:center; flex-wrap:wrap; margin-bottom:10px;">
+        <div class="input-group" style="flex:0 0 180px;">
+          <label>Лейкоциты <span class="unit">×10⁹/л</span></label>
+          <input type="text" id="wbc" placeholder="7.5">
+        </div>
+        <label class="cb-item" style="margin-bottom:0;">
+          <input type="checkbox" id="precise_bleed">
+          <div>
+            <div class="cb-label">Предыдущее спонтанное кровотечение</div>
+          </div>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== HAS-BLED ===== -->
+  <div class="scale-block" id="block_hasbled">
+    <div class="scale-block-header">💊 HAS-BLED — риск кровотечения на фоне антикоагуляции</div>
+    <div class="scale-block-body">
+      <div class="scale-cb-grid">
+  
+        <label class="scale-cb-item auto-cb" id="hb_htn_row">
+          <input type="checkbox" id="hb_htn" disabled>
+          <span>H — Неконтролируемая АГ (АД сист. &gt;160 мм рт. ст.) <span class="auto-tag">авто</span></span>
+          <span class="pts">+1</span>
+        </label>
+  
+        <label class="scale-cb-item" id="hb_renal_label">
+          <input type="checkbox" id="hb_renal">
+          <span>A — Нарушение функции почек (диализ, трансплантация или креатинин ≥ 200 мкмоль/л)</span>
+          <span class="warning-icon" id="hb_renal_warning" style="display:none; margin-left:6px; cursor:help;">⚠️</span>
+          <span class="pts">+1</span>
+        </label>
+  
+        <label class="scale-cb-item">
+          <input type="checkbox" id="hb_liver">
+          <span>A — Нарушение функции печени (цирроз, или билирубин &gt;2N с АСТ/АЛТ/ЩФ &gt;3N)</span>
+          <span class="pts">+1</span>
+        </label>
+  
+        <label class="scale-cb-item auto-cb" id="hb_stroke_row">
+          <input type="checkbox" id="hb_stroke" disabled>
+          <span>S — Инсульт в анамнезе <span class="auto-tag">авто из общих</span></span>
+          <span class="pts">+1</span>
+        </label>
+  
+        <label class="scale-cb-item" id="hb_bleed_label">
+          <input type="checkbox" id="hb_bleed">
+          <span>B — Кровотечение в анамнезе или предрасположенность к нему (анемия, тромбоцитопения, геморрагический диатез)</span>
+          <span class="warning-icon" id="hb_bleed_warning" style="display:none; margin-left:6px; cursor:help;" title="">⚠️</span>
+          <span class="pts">+1</span>
+        </label>
+  
+        <label class="scale-cb-item">
+          <input type="checkbox" id="hb_inr">
+          <span>L — Лабильное МНО (нестабильный TTR при приёме варфарина)</span>
+          <span class="pts">+1</span>
+        </label>
+  
+        <label class="scale-cb-item auto-cb" id="hb_age_row">
+          <input type="checkbox" id="hb_age" disabled>
+          <span>E — Возраст &gt;65 лет <span class="auto-tag">авто</span></span>
+          <span class="pts">+1</span>
+        </label>
+  
+        <label class="scale-cb-item">
+          <input type="checkbox" id="hb_drugs">
+          <span>D — Приём антиагрегантов / НПВП</span>
+          <span class="pts">+1</span>
+        </label>
+  
+        <label class="scale-cb-item">
+          <input type="checkbox" id="hb_alcohol">
+          <span>D — Злоупотребление алкоголем</span>
+          <span class="pts">+1</span>
+        </label>
+  
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== CHA2DS2-VASc ===== -->
+  <div class="scale-block" id="block_cha2ds2">
+    <div class="scale-block-header">💓 CHA₂DS₂-VASc — риск инсульта при ФП</div>
+    <div class="scale-block-body">
+      <div class="scale-cb-grid">
+
+        <label class="scale-cb-item auto-cb">
+          <input type="checkbox" id="cha_hf" disabled>
+          <span>C — Сердечная недостаточность <span class="auto-tag">авто из общих</span></span>
+          <span class="pts">+1</span>
+        </label>
+
+        <label class="scale-cb-item auto-cb">
+          <input type="checkbox" id="cha_htn" disabled>
+          <span>H — АГ (диагностированная) <span class="auto-tag">авто из общих</span></span>
+          <span class="pts">+1</span>
+        </label>
+
+        <label class="scale-cb-item auto-cb" id="cha_age75_row">
+          <input type="checkbox" id="cha_age75" disabled>
+          <span>A₂ — Возраст ≥75 лет <span class="auto-tag">авто</span></span>
+          <span class="pts">+2</span>
+        </label>
+
+        <label class="scale-cb-item auto-cb">
+          <input type="checkbox" id="cha_dm" disabled>
+          <span>D — Сахарный диабет <span class="auto-tag">авто из общих</span></span>
+          <span class="pts">+1</span>
+        </label>
+
+        <label class="scale-cb-item auto-cb">
+          <input type="checkbox" id="cha_stroke" disabled>
+          <span>S₂ — Инсульт / ТИА / тромбоэмболия в анамнезе <span class="auto-tag">авто из общих</span></span>
+          <span class="pts">+2</span>
+        </label>
+
+        <label class="scale-cb-item auto-cb">
+          <input type="checkbox" id="cha_vasc" disabled>
+          <span>V — Сосудистое заболевание в анамнезе <span class="auto-tag">авто из общих</span></span>
+          <span class="pts">+1</span>
+        </label>
+
+        <label class="scale-cb-item auto-cb" id="cha_age65_row">
+          <input type="checkbox" id="cha_age65" disabled>
+          <span>A — Возраст 65–74 лет <span class="auto-tag">авто</span></span>
+          <span class="pts">+1</span>
+        </label>
+
+        <label class="scale-cb-item auto-cb" id="cha_female_row">
+          <input type="checkbox" id="cha_female" disabled>
+          <span>Sc — Женский пол <span class="auto-tag">авто</span></span>
+          <span class="pts">+1</span>
+        </label>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== CAPRINI ===== -->
+  <div class="scale-block" id="block_caprini">
+    <div class="scale-block-header">🩺 Caprini 2010 — риск ВТЭО</div>
+    <div class="scale-block-body">
+
+      <div class="section-label">1 балл каждый</div>
+      <div class="scale-cb-grid">
+        <label class="scale-cb-item auto-cb" id="cap_age41_row">
+          <input type="checkbox" id="cap_age41" disabled>
+          <span>Возраст 41–60 лет <span class="auto-tag">авто</span></span><span class="pts">×1</span>
+        </label>
+        <label class="scale-cb-item">
+          <input type="checkbox" id="cap_minor_surgery">
+          <span>Малое хирургическое вмешательство в анамнезе</span><span class="pts">×1</span>
+        </label>
+        <label class="scale-cb-item">
+          <input type="checkbox" id="cap_varicose">
+          <span>Варикозное расширение вен</span><span class="pts">×1</span>
+        </label>
+        <label class="scale-cb-item">
+          <input type="checkbox" id="cap_ibd">
+          <span>Воспалительные заболевания толстой кишки в анамнезе</span><span class="pts">×1</span>
+        </label>
+        <label class="scale-cb-item">
+          <input type="checkbox" id="cap_swollen_legs">
+          <span>Отёчность ног в настоящее время</span><span class="pts">×1</span>
+        </label>
+        <label class="scale-cb-item auto-cb">
+          <input type="checkbox" id="cap_obesity" disabled>
+          <span>ИМТ > 25 кг/м²<span class="auto-tag">авто</span></span><span class="pts">×1</span>
+        </label>
+        <label class="scale-cb-item" id="cap_acs_label">
+          <input type="checkbox" id="cap_acs">
+          <span>ОИМ</span>
+          <span class="warning-icon" id="cap_acs_warning" style="display:none; margin-left:6px; cursor:help;">⚠️</span>
+          <span class="pts">×1</span>
+        </label>
+        <label class="scale-cb-item auto-cb">
+          <input type="checkbox" id="cap_chf" disabled>
+          <span>ХСН &lt;1 мес. <span class="auto-tag">авто из общих</span></span><span class="pts">×1</span>
+        </label>
+        <label class="scale-cb-item">
+          <input type="checkbox" id="cap_sepsis">
+          <span>Сепсис &lt;1 мес.</span><span class="pts">×1</span>
+        </label>
+        <label class="scale-cb-item">
+          <input type="checkbox" id="cap_lung_disease">
+          <span>Тяжёлое заболевание лёгких (включая пневмонию &lt;1 мес.)</span><span class="pts">×1</span>
+        </label>
+        <label class="scale-cb-item">
+          <input type="checkbox" id="cap_copd">
+          <span>ХОБЛ</span>
+          <span class="warning-icon" id="cap_copd_warning" style="display:none; margin-left:6px; cursor:help;">⚠️</span><span class="pts">×1</span>
+        </label>
+        <label class="scale-cb-item">
+          <input type="checkbox" id="cap_bedrest">
+          <span>Постельный режим</span><span class="pts">×1</span>
+        </label>
+        <label class="scale-cb-item">
+          <input type="checkbox" id="cap_pregnancy">
+          <span>Беременность или послеродовый период</span><span class="pts">×1</span>
+        </label>
+        <label class="scale-cb-item">
+          <input type="checkbox" id="cap_miscarriage">
+          <span>Невынашивание беременности в анамнезе</span><span class="pts">×1</span>
+        </label>
+        <label class="scale-cb-item">
+          <input type="checkbox" id="cap_oc">
+          <span>Приём оральных контрацептивов или гормональная терапия</span><span class="pts">×1</span>
+        </label>
+      </div>
+
+      <div class="section-label">2 балла каждый</div>
+      <div class="scale-cb-grid">
+        <label class="scale-cb-item auto-cb" id="cap_age61_row">
+          <input type="checkbox" id="cap_age61" disabled>
+          <span>Возраст 61–74 лет <span class="auto-tag">авто</span></span><span class="pts">×2</span>
+        </label>
+        <label class="scale-cb-item">
+          <input type="checkbox" id="cap_arthroscopy">
+          <span>Артроскопическая операция</span><span class="pts">×2</span>
+        </label>
+        <label class="scale-cb-item">
+          <input type="checkbox" id="cap_cancer">
+          <span>Злокачественная опухоль (настоящее или прошлое)</span><span class="pts">×2</span>
+        </label>
+        <label class="scale-cb-item">
+          <input type="checkbox" id="cap_laparoscopy">
+          <span>Лапароскопическая операция &gt;60 мин</span><span class="pts">×2</span>
+        </label>
+        <label class="scale-cb-item">
+          <input type="checkbox" id="cap_bedrest72">
+          <span>Постельный режим &gt;72 ч</span><span class="pts">×2</span>
+        </label>
+        <label class="scale-cb-item">
+          <input type="checkbox" id="cap_cast">
+          <span>Иммобилизация конечности (гипс)</span><span class="pts">×2</span>
+        </label>
+        <label class="scale-cb-item">
+          <input type="checkbox" id="cap_cvc">
+          <span>Центральный венозный катетер</span><span class="pts">×2</span>
+        </label>
+        <label class="scale-cb-item">
+          <input type="checkbox" id="cap_open_surgery">
+          <span>Открытая операция &gt;45 мин</span><span class="pts">×2</span>
+        </label>
+      </div>
+
+      <div class="section-label">3 балла каждый</div>
+      <div class="scale-cb-grid">
+        <label class="scale-cb-item auto-cb" id="cap_age75_row">
+          <input type="checkbox" id="cap_age75" disabled>
+          <span>Возраст ≥75 лет <span class="auto-tag">авто</span></span><span class="pts">×3</span>
+        </label>
+        <label class="scale-cb-item auto-cb">
+          <input type="checkbox" id="cap_dvt_hx" disabled>
+          <span>ТГВ / ТЭЛА в анамнезе <span class="auto-tag">авто из общих</span></span><span class="pts">×3</span>
+        </label>
+        <label class="scale-cb-item">
+          <input type="checkbox" id="cap_fam_dvt">
+          <span>Семейный анамнез ВТЭО</span><span class="pts">×3</span>
+        </label>
+        <label class="scale-cb-item">
+          <input type="checkbox" id="cap_factor_v">
+          <span>Фактор V Лейдена</span><span class="pts">×3</span>
+        </label>
+        <label class="scale-cb-item">
+          <input type="checkbox" id="cap_prothrombin">
+          <span>Мутация гена протромбина G20210A</span><span class="pts">×3</span>
+        </label>
+        <label class="scale-cb-item">
+          <input type="checkbox" id="cap_lupus">
+          <span>Волчаночный антикоагулянт</span><span class="pts">×3</span>
+        </label>
+        <label class="scale-cb-item">
+          <input type="checkbox" id="cap_anticardiolipin">
+          <span>Повышенный уровень антител к кардиолипину</span><span class="pts">×3</span>
+        </label>
+        <label class="scale-cb-item">
+          <input type="checkbox" id="cap_hyperhomocys">
+          <span>Гипергомоцистеинемия</span><span class="pts">×3</span>
+        </label>
+        <label class="scale-cb-item">
+          <input type="checkbox" id="cap_heparin_hit">
+          <span>Гепарин-индуцированная тромбоцитопения</span><span class="pts">×3</span>
+        </label>
+        <label class="scale-cb-item">
+          <input type="checkbox" id="cap_other_thrombophilia">
+          <span>Другая врождённая или приобретённая тромбофилия</span><span class="pts">×3</span>
+        </label>
+      </div>
+
+      <div class="section-label">5 баллов каждый</div>
+      <div class="scale-cb-grid">
+        <label class="scale-cb-item">
+          <input type="checkbox" id="cap_elective_hip">
+          <span>Плановое эндопротезирование тазобедренного или коленного сустава</span><span class="pts">×5</span>
+        </label>
+        <label class="scale-cb-item">
+          <input type="checkbox" id="cap_hip_fx">
+          <span>Перелом костей конечности или таза (давностью до 1 мес.)</span><span class="pts">×5</span>
+        </label>
+        <label class="scale-cb-item">
+          <input type="checkbox" id="cap_spinal_trauma">
+          <span>Острое спинальное повреждение (паралич) &lt;1 мес.</span><span class="pts">×5</span>
+        </label>
+        <label class="scale-cb-item">
+          <input type="checkbox" id="cap_stroke_5">
+          <span class="scale-cb-text">Инсульт (давностью до 1 мес.) <span class="scale-cb-hint">отмечается вручную — нужна давность < 1 мес.</span></span><span class="pts">×5</span>
+          <span class="warning-icon" id="cap_stroke_warning" style="display:none; margin-left:6px; cursor:help;">⚠️</span>
+        </label>
+        <label class="scale-cb-item">
+          <input type="checkbox" id="cap_multiple_trauma">
+          <span>Политравма &lt;1 мес.</span><span class="pts">×5</span>
+        </label>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ===== PESI / sPESI (ТЭЛА) ===== -->
+  <div class="scale-block" id="block_pesi">
+    <div class="scale-block-header">🩺 PESI / sPESI — прогноз при ТЭЛА</div>
+    <div class="scale-block-body">
+
+      <div class="input-grid" style="margin-bottom:12px;">
+        <div class="input-group">
+          <label>Частота дыханий (ЧДД) <span class="unit">в мин</span></label>
+          <input type="text" id="pesi_rr" placeholder="20">
+        </div>
+        <div class="input-group">
+          <label>Температура <span class="unit">°C</span></label>
+          <input type="text" id="pesi_temp" placeholder="36.6">
+        </div>
+        <div class="input-group">
+          <label>SpO₂ <span class="unit">%</span></label>
+          <input type="text" id="pesi_spo2" placeholder="95">
+        </div>
+      </div>
+
+      <div class="checkbox-grid">
+        <label class="cb-item">
+          <input type="checkbox" id="pesi_cancer">
+          <div>
+            <div class="cb-label">Злокачественное новообразование (активное или в анамнезе)</div>
+          </div>
+        </label>
+        <label class="cb-item auto-filled" id="pesi_hf_row">
+          <input type="checkbox" id="pesi_hf">
+          <div>
+            <div class="cb-label">Хроническая сердечная недостаточность <span class="auto-tag">авто</span></div>
+          </div>
+        </label>
+        <label class="cb-item">
+          <input type="checkbox" id="pesi_copd">
+          <div>
+            <div class="cb-label">Хроническое заболевание лёгких / ХОБЛ</div>
+          </div>
+        </label>
+        <label class="cb-item">
+          <input type="checkbox" id="pesi_altered_mental">
+          <div>
+            <div class="cb-label">Нарушение сознания (спутанность, сопор)</div>
+          </div>
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== WELLS (ТЭЛА) ===== -->
+  <div class="scale-block" id="block_wells">
+    <div class="scale-block-header">🫁 Шкала Wells — клиническая вероятность ТЭЛА</div>
+    <div class="scale-block-body">
+
+      <div class="scale-cb-grid">
+
+        <label class="scale-cb-item">
+          <input type="checkbox" id="wells_dvt_signs">
+          <span class="scale-cb-text">
+            Клинические признаки ТГВ
+            <span class="scale-cb-hint">Минимум: отёк ноги и боль при пальпации глубоких вен</span>
+          </span>
+          <span class="pts">+3,0</span>
+        </label>
+
+        <label class="scale-cb-item">
+          <input type="checkbox" id="wells_alt_diag">
+          <span>Альтернативный диагноз менее вероятен, чем ТЭЛА</span>
+          <span class="pts">+3,0</span>
+        </label>
+
+        <label class="scale-cb-item auto-cb" id="wells_hr_row">
+          <input type="checkbox" id="wells_hr" disabled>
+          <span>ЧСС >100 уд/мин <span class="auto-tag">авто</span></span>
+          <span class="pts">+1,5</span>
+        </label>
+
+        <label class="scale-cb-item">
+          <input type="checkbox" id="wells_immob">
+          <span class="scale-cb-text">
+            Иммобилизация или операция в последние 4 недели
+            <span class="scale-cb-hint">Иммобилизация ≥3 дней или недавнее хирургическое вмешательство</span>
+          </span>
+          <span class="pts">+1,5</span>
+        </label>
+
+        <label class="scale-cb-item auto-cb">
+          <input type="checkbox" id="wells_prev_dvt" disabled>
+          <span>ТГВ или ТЭЛА в анамнезе <span class="auto-tag">авто из общих</span></span>
+          <span class="pts">+1,5</span>
+        </label>
+
+        <label class="scale-cb-item">
+          <input type="checkbox" id="wells_hemoptysis">
+          <span>Кровохарканье</span>
+          <span class="pts">+1,0</span>
+        </label>
+
+        <label class="scale-cb-item">
+          <input type="checkbox" id="wells_cancer">
+          <span class="scale-cb-text">
+            Злокачественное новообразование
+            <span class="scale-cb-hint">Текущее лечение, лечение в последние 6 месяцев или паллиативная помощь</span>
+          </span>
+          <span class="pts">+1,0</span>
+          <span class="warning-icon" id="wells_cancer_warning" style="display:none; margin-left:6px; cursor:help;">⚠️</span>
+        </label>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== REVISED GENEVA (ТЭЛА) ===== -->
+  <div class="scale-block" id="block_geneva">
+    <div class="scale-block-header">🫁 Пересмотренная Женевская шкала — клиническая вероятность ТЭЛА</div>
+    <div class="scale-block-body">
+
+      <div class="section-label">Факторы риска</div>
+      <div class="scale-cb-grid">
+
+        <label class="scale-cb-item auto-cb" id="geneva_age_row">
+          <input type="checkbox" id="geneva_age" disabled>
+          <span>Возраст >65 лет <span class="auto-tag">авто</span></span>
+          <span class="pts">+1</span>
+        </label>
+
+        <label class="scale-cb-item auto-cb">
+          <input type="checkbox" id="geneva_prev_dvt" disabled>
+          <span>ТГВ или ТЭЛА в анамнезе <span class="auto-tag">авто из общих</span></span>
+          <span class="pts">+3</span>
+        </label>
+
+        <label class="scale-cb-item">
+          <input type="checkbox" id="geneva_surgery">
+          <span class="scale-cb-text">
+            Операция или перелом нижней конечности в последний 1 месяц
+            <span class="scale-cb-hint">Операция подразумевает вмешательство под общим наркозом</span>
+          </span>
+          <span class="pts">+2</span>
+        </label>
+
+        <label class="scale-cb-item">
+          <input type="checkbox" id="geneva_cancer">
+          <span class="scale-cb-text">
+            Активное злокачественное новообразование
+            <span class="scale-cb-hint">Солидное или гематологическое, активное сейчас или считающееся излеченным &lt;1 года назад</span>
+          </span>
+          <span class="pts">+2</span>
+          <span class="warning-icon" id="geneva_cancer_warning" style="display:none; margin-left:6px; cursor:help;">⚠️</span>
+        </label>
+
+      </div>
+
+      <div class="section-label">Симптомы</div>
+      <div class="scale-cb-grid">
+
+        <label class="scale-cb-item">
+          <input type="checkbox" id="geneva_leg_pain">
+          <span>Односторонняя боль в нижней конечности</span>
+          <span class="pts">+3</span>
+        </label>
+
+        <label class="scale-cb-item">
+          <input type="checkbox" id="geneva_hemoptysis">
+          <span>Кровохарканье</span>
+          <span class="pts">+2</span>
+        </label>
+
+      </div>
+
+      <div class="section-label">Клинические признаки</div>
+      <div class="scale-cb-grid">
+
+        <label class="scale-cb-item auto-cb" id="geneva_hr75_row">
+          <input type="checkbox" id="geneva_hr75" disabled>
+          <span>ЧСС 75–94 уд/мин <span class="auto-tag">авто</span></span>
+          <span class="pts">+3</span>
+        </label>
+
+        <label class="scale-cb-item auto-cb" id="geneva_hr95_row">
+          <input type="checkbox" id="geneva_hr95" disabled>
+          <span>ЧСС ≥95 уд/мин <span class="auto-tag">авто</span></span>
+          <span class="pts">+5</span>
+        </label>
+
+        <label class="scale-cb-item">
+          <input type="checkbox" id="geneva_dvt_signs">
+          <span>Боль при пальпации глубоких вен и односторонний отёк</span>
+          <span class="pts">+4</span>
+        </label>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== РЕЗУЛЬТАТЫ ===== -->
+  <div id="results" style="display:none; margin-top:24px;">
+
+    <div class="card">
+      <div class="card-header">📊 Результаты</div>
+      <div class="card-body" style="padding-bottom:8px;">
+        <div class="results-grid" id="resultsGrid"></div>
+      </div>
+    </div>
+
+    <!-- Блок копирования -->
+    <div class="card">
+      <div class="card-header">📋 Текст для истории болезни <span class="badge">только результаты без подсказок</span></div>
+      <div class="card-body">
+        <div class="copy-block" id="copyText"></div>
+        <button class="copy-btn" id="copyBtn" onclick="copyToClipboard()">📋 Копировать в буфер обмена</button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Ошибки -->
+
+</main>
+</div><!-- /layout-wrapper -->
+</div><!-- /container -->
+
+<!-- ===== ДИСКЛЕЙМЕР — БАННЕР ВНИЗУ СТРАНИЦЫ ===== -->
+<div class="container disclaimer-container">
+  <div class="disclaimer-banner">
+    <h3>Внимание! Важная информация</h3>
+    <p>Данный калькулятор является <strong>вспомогательным инструментом</strong> и предназначен для использования <strong>только квалифицированными медицинскими специалистами</strong>.</p>
+    <p>Расчёты основаны на опубликованных клинических шкалах и номограммах (GRACE, CRUSADE, HAS-BLED, CHA₂DS₂-VASc, PRECISE-DAPT, Caprini, PESI/sPESI, Wells, Revised Geneva, ARC-HBR, CKD-EPI, Кокрофт-Голт). Однако результаты расчётов <strong>не являются диагнозом</strong> и <strong>не заменяют клиническое суждение врача</strong>.</p>
+    <p>Калькулятор <strong>не учитывает</strong> индивидуальные особенности пациента, сопутствующие заболевания, взаимодействие лекарственных средств и другие факторы, которые могут влиять на клиническое решение.</p>
+    <p><strong>За клинические решения, принятые на основе данных калькулятора, ответственность несёт лечащий врач.</strong></p>
+    <div class="disclaimer-version">По вопросам и предложениям пишите на почту: <a href="mailto:feedback@doc-apps.ru">feedback@doc-apps.ru</a></div>
+  </div>
+
+  <!-- ===== БЛОК «ПОДДЕРЖАТЬ РАЗРАБОТЧИКА» ===== -->
+  <div class="support-block">
+    <h3>❤️ Поддержать проект</h3>
+    <p>Если калькулятор оказался полезным — вы можете поддержать его развитие. Все средства пойдут на поддержку и улучшение инструмента.</p>
+    <div class="support-qr-area">
+      <div class="support-qr-img">
+        <img src="QR-код.jpg" alt="QR-код для оплаты по СБП">
+      </div>
+      <div class="support-info">
+        <div class="support-label">Оплата по СБП (Система Быстрых Платежей)</div>
+        <a href="https://www.sberbank.ru/ru/choise_bank?requisiteNumber=79964012321&bankCode=100000000111" target="_blank" class="support-link-btn">Перейти к оплате</a>
+        <div class="support-hint">Отсканируйте QR-код камерой телефона или нажмите кнопку для перевода через СБП</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Кастомный тултип -->
+<div id="customTooltip"></div>
+
+<!-- Плавающая кнопка "Рассчитать шкалы" -->
+<button class="floating-calc" id="calcBtn" onclick="calculate()">
+  <span id="calcBtnText">⚡ РАССЧИТАТЬ ШКАЛЫ</span>
+</button>
+
+<!-- Контейнер с кнопками навигации -->
+<div class="nav-buttons">
+  <button id="undoBtn" class="undo-btn" disabled title="Отменить последнее изменение (Ctrl+Z)">
+    ↩ <span class="undo-count">0</span>
+  </button>
+  <button class="scroll-down-btn" onclick="window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });" title="Вниз">↓</button>
+  <button class="scroll-top-btn" onclick="window.scrollTo({ top: 0, behavior: 'smooth' });" title="Наверх">↑</button>
+</div>
+
+<!-- Контейнер для всплывающих уведомлений (тостов) -->
+<div id="toastContainer" style="position: fixed; z-index: 9999; display: flex; flex-direction: column; gap: 10px;"></div>
+
+<!-- ===== ДИСКЛЕЙМЕР — МОДАЛЬНОЕ ОКНО ===== -->
+<div id="disclaimerOverlay" class="disclaimer-overlay" style="display:none;">
+  <div class="disclaimer-modal">
+    <h3>Внимание! Важная информация</h3>
+    <p>Данный калькулятор является <strong>вспомогательным инструментом</strong> и предназначен для использования <strong>только квалифицированными медицинскими специалистами</strong>.</p>
+    <p>Расчёты основаны на опубликованных клинических шкалах и номограммах (GRACE, CRUSADE, HAS-BLED, CHA₂DS₂-VASc, PRECISE-DAPT, Caprini, PESI/sPESI, Wells, Revised Geneva, ARC-HBR, CKD-EPI, Кокрофт-Голт). Однако результаты расчётов <strong>не являются диагнозом</strong> и <strong>не заменяют клиническое суждение врача</strong>.</p>
+    <p>Калькулятор <strong>не учитывает</strong> индивидуальные особенности пациента, сопутствующие заболевания, взаимодействие лекарственных средств и другие факторы, которые могут влиять на клиническое решение.</p>
+    <p><strong>За клинические решения, принятые на основе данных калькулятора, ответственность несёт лечащий врач.</strong></p>
+    <button class="disclaimer-accept-btn" onclick="acceptDisclaimer()">Я понимаю и принимаю</button>
+  </div>
+</div>
+
+<!-- ===== ИНСТРУКЦИЯ — МОДАЛЬНОЕ ОКНО ===== -->
+<div id="helpOverlay" class="help-overlay" style="display:none;">
+  <div class="help-modal">
+    <div class="help-modal-header">
+      <span class="help-modal-title">📖 Инструкция</span>
+      <button type="button" class="help-close-btn" id="helpCloseBtn" title="Закрыть">✕</button>
+    </div>
+    <div class="help-modal-body">
+      <div class="help-nav" id="helpNav"></div>
+      <div class="help-content" id="helpContent"></div>
+    </div>
+  </div>
+</div>
+<script src="core.js"></script>
+<script src="scales.js"></script>
+<script src="analysis.js"></script>
+<script src="help.js"></script>
+</body>
+</html>
