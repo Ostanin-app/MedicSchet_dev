@@ -862,6 +862,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // --- Инициализация переключателя пола ---
   initSexToggle();
+  initSmokingToggle();
+
+  // --- Тултипы (ⓘ) режима и модуля «СС-риск и липиды» ---
+  setupTooltipTrigger(document.getElementById('outpatientHintIcon'),
+    'Режим «Поликлиника»: здесь доступны шкалы для планового приёма. Стационарные шкалы (GRACE, CRUSADE, ARC-HBR, Caprini, PRECISE-DAPT, PESI, Wells, Geneva) в этом режиме скрыты и не участвуют в расчётах.');
+  setupTooltipTrigger(document.getElementById('score2HintIcon'),
+    'Модуль сам выберет нужный вариант SCORE2 по возрасту и диабету и рассчитает ЛПНП по формулам. Если риск и так очевидно очень высокий (инфаркт, инсульт и т.п.) — SCORE2 показываться не будет.');
+  setupTooltipTrigger(document.getElementById('ldlHintIcon'),
+    'По желанию — сравним лабораторный ЛПНП с расчётом по формулам.');
 
   // --- Инициализация дисклеймера ---
   checkDisclaimer();
@@ -899,6 +908,12 @@ document.addEventListener('DOMContentLoaded', function() {
   document.addEventListener('change', function(e) {
     var grp = e.target && e.target.closest ? e.target.closest('.input-group') : null;
     if (grp) grp.classList.remove('field-error');
+  });
+
+  // --- Модуль SCORE2: видимость HbA1c/дебюта СД при изменении диабета ---
+  ['cb_dm', 'dm_age20'].forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) el.addEventListener('change', updateFieldVisibility);
   });
   document.addEventListener('click', function(e) {
     var grp = e.target && e.target.closest ? e.target.closest('.input-group') : null;

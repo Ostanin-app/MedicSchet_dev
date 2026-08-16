@@ -553,6 +553,13 @@ select option {
 .sex-btn:hover { background: var(--primary-soft); }
 .sex-btn.active { background: var(--primary); color: #fff; }
 
+/* Кнопки курения (3 состояния) — в одну строку, компактнее */
+.sex-btn[data-smoke] {
+  white-space: nowrap;
+  padding: 9px 6px;
+  font-size: 13px;
+}
+
 /* Плавающая кнопка "Рассчитать" */
 .floating-calc {
   position: fixed;

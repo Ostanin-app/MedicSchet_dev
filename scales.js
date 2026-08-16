@@ -622,7 +622,8 @@ function updateFieldVisibility() {
     pesi:    isScaleActive('pesi'),
     wells:   isScaleActive('wells'),
     geneva:  isScaleActive('geneva'),
-    precise: isScaleActive('precise')
+    precise: isScaleActive('precise'),
+    score2:  isScaleActive('score2')
   };
 
   function setVisible(className, condition) {
@@ -634,21 +635,21 @@ function updateFieldVisibility() {
 
   var anyScale = active.ckdepi || active.cg || active.grace || active.crusade ||
                  active.archbr || active.hasbled || active.cha2ds2 || active.caprini ||
-                 active.pesi || active.wells || active.geneva || active.precise;
+                 active.pesi || active.wells || active.geneva || active.precise || active.score2;
   var needAge    = anyScale;
   var noScaleHint = document.getElementById('noScaleHint');
   if (noScaleHint) noScaleHint.style.display = anyScale ? 'none' : '';
-  var needSex    = active.ckdepi || active.cg || active.crusade || active.archbr || active.cha2ds2 || active.pesi || active.precise;
+  var needSex    = active.ckdepi || active.cg || active.crusade || active.archbr || active.cha2ds2 || active.pesi || active.precise || active.score2;
   var needHeight = active.cg || active.caprini || active.crusade;
   var needWeight = active.cg || active.caprini || active.crusade || active.precise;
-  var needSBP    = active.grace || active.crusade || active.hasbled || active.pesi;
+  var needSBP    = active.grace || active.crusade || active.hasbled || active.pesi || active.score2;
   var needHR     = active.grace || active.crusade || active.pesi || active.wells || active.geneva;
-  var needCreat  = active.ckdepi || active.cg || active.grace || active.archbr || active.hasbled || active.crusade || active.precise;
+  var needCreat  = active.ckdepi || active.cg || active.grace || active.archbr || active.hasbled || active.crusade || active.precise || active.score2;
   var needHB     = active.archbr || active.precise;
   var needHCT    = active.crusade;
   var needPLT    = active.archbr;
 
-  var needDM       = active.crusade || active.cha2ds2;
+  var needDM       = active.crusade || active.cha2ds2 || active.score2;
   var needHF       = active.crusade || active.cha2ds2 || active.caprini || active.pesi;
   var needHTN      = active.cha2ds2;
   var needStroke   = active.hasbled || active.cha2ds2;
@@ -656,6 +657,11 @@ function updateFieldVisibility() {
   var needVte      = active.caprini || active.wells || active.geneva;
   var needVasc     = active.crusade || active.cha2ds2;
   var needVerapamil = active.cg;
+
+  // Поля модуля «СС-риск и липиды»: HbA1c и возраст дебюта СД видны только при диабете
+  var dmChecked = !!document.getElementById('cb_dm') && document.getElementById('cb_dm').checked;
+  var needHba1c = active.score2 && dmChecked;
+  var needDmAge = active.score2 && dmChecked;
 
   setVisible('field-age',      needAge);
   setVisible('field-sex',      needSex);
@@ -676,8 +682,23 @@ function updateFieldVisibility() {
   setVisible('field-vte',      needVte);
   setVisible('field-vasc',     needVasc);
   setVisible('field-verapamil', needVerapamil);
+  // Чекбоксы, используемые только в поликлиническом режиме (модуль СС-риск и липиды)
+  var isOutpatient = (typeof getCurrentMode === 'function') && getCurrentMode() === 'outpatient';
+  setVisible('field-mi',       isOutpatient && anyScale);
+  setVisible('field-sghs',     isOutpatient && anyScale);
+  setVisible('field-dm-tod',   isOutpatient && anyScale);
 
-  var anyCheckboxVisible = needDM || needHF || needHTN || needStroke || needEmb || needVte || needVasc || needVerapamil;
+  // Внутри блока SCORE2: HbA1c и дебют СД — только при отмеченном диабете
+  setVisible('field-hba1c',    needHba1c);
+  setVisible('field-dm-age',   needDmAge);
+  setVisible('field-dm-age20', needDmAge);
+
+  // «Длительность СД ≥ 20 лет» гасит поле «Возраст дебюта СД»
+  var dmAgeEl = document.getElementById('dm_age');
+  var dmAge20El = document.getElementById('dm_age20');
+  if (dmAgeEl && dmAge20El) dmAgeEl.disabled = !!dmAge20El.checked;
+
+  var anyCheckboxVisible = needDM || needHF || needHTN || needStroke || needEmb || needVte || needVasc || needVerapamil || (isOutpatient && anyScale);
   var divider = document.querySelector('.divider');
   if (divider) divider.style.display = anyCheckboxVisible ? '' : 'none';
 }
@@ -1276,6 +1297,217 @@ function autofill() {
 }
 
 // ===================================================
+//  SCORE2: сердечно-сосудистый риск и липиды
+//  Стратификация — рос. КР 2023 (план 2026-08-16).
+// ===================================================
+
+function score2DurYears(age, dmAge, dmAge20) {
+  if (dmAge20) return 99;
+  if (dmAge && isFinite(dmAge) && age && isFinite(age)) return age - dmAge;
+  return null;
+}
+
+// Клиническая категория риска (без SCORE2). Возвращает ключ или null,
+// если нужен расчёт по SCORE2.
+function score2ClinicalCat(ctx) {
+  var assz = ctx.mi || ctx.stroke || ctx.tia || ctx.vasc;
+  var ckd = ctx.egfr;
+
+  if (ctx.events2) return 'extreme';                                     // 2 СС-события за 2 года
+  if (assz && (ctx.dm || ctx.sghs)) return 'extreme';                    // АССЗ + СД2 и/или СГХС
+  if (assz) return 'veryhigh';                                           // документированное АССЗ
+  if (ctx.dm && (ctx.tod || ctx.dm20 || (ctx.dur !== null && ctx.dur >= 20))) return 'veryhigh'; // СД + ПOM или ≥20 лет
+  if (ckd !== null && ckd < 30) return 'veryhigh';                       // тяжёлая ХБП
+
+  if (ctx.tchol > 8 || ctx.ldl > 4.9 || ctx.sbp >= 180) {
+    // У пациентов с СД модель SCORE2-Diabetes считается всегда (категория по максимуму),
+    // поэтому клинические «высокие» факторы для них не блокируют расчёт (учтутся как floor)
+    if (!ctx.dm) return 'high';
+  }
+  if (ckd !== null && ckd >= 30 && ckd < 60) {
+    if (!ctx.dm) return 'high';
+  }
+  if (ctx.sghs && !ctx.dm) return 'high';
+  // При СД без ПOM/≥20 лет SCORE2-Diabetes считается всегда;
+  // правила СД (длительность ≥10 лет, ФР) учтены при категории «по максимуму».
+  return null;
+}
+
+// Категория по порогам SCORE2 (рос. КР 2023)
+function score2ThresholdCat(model, risk, age) {
+  if (model === 'score2') {
+    if (age < 50) return risk < 1 ? 'low' : risk < 2.5 ? 'moderate' : risk < 7.5 ? 'high' : 'veryhigh';
+    return risk < 1 ? 'low' : risk < 5 ? 'moderate' : risk < 10 ? 'high' : 'veryhigh';
+  }
+  if (model === 'diab') {
+    return risk < 5 ? 'low' : risk < 10 ? 'moderate' : risk < 20 ? 'high' : 'veryhigh';
+  }
+  // op (70–89 лет)
+  return risk < 1 ? 'low' : risk < 7.5 ? 'moderate' : risk < 15 ? 'high' : 'veryhigh';
+}
+
+// Правила СД (рос. КР 2023) — для категории «по максимуму»
+function score2DmRuleCat(ctx) {
+  if (ctx.tod || ctx.dm20 || (ctx.dur !== null && ctx.dur >= 20)) return 'veryhigh';
+  var dur = ctx.dur;
+  if (dur !== null && dur >= 10) return 'high';
+  if (ctx.htn || ctx.smoking) return 'high';
+  return 'moderate';
+}
+
+var SCORE2_CAT_ORDER = ['low', 'moderate', 'high', 'veryhigh', 'extreme'];
+
+var SCORE2_LDL_TARGETS = {
+  extreme:  1.0,
+  veryhigh: 1.4,
+  high:     1.8,
+  moderate: 2.6,
+  low:      3.0
+};
+
+var SCORE2_CAT_LABELS = {
+  extreme:  'Экстремальный риск',
+  veryhigh: 'Очень высокий риск',
+  high:     'Высокий риск',
+  moderate: 'Умеренный риск',
+  low:      'Низкий риск'
+};
+
+var SCORE2_RECOMMENDATIONS = {
+  extreme:  'Достичь ХС ЛНП < 1,0 ммоль/л. Статин в максимально переносимой дозе + эзетимиб; при недостижении цели — ингибитор PCSK9.',
+  veryhigh: 'Достичь ХС ЛНП < 1,4 ммоль/л и снизить его ≥50% от исходного. Статин в максимально переносимой дозе; при недостижении цели — добавить эзетимиб.',
+  high:     'Достичь ХС ЛНП < 1,8 ммоль/л и снизить его ≥50% от исходного. Статин средней или высокой интенсивности; при недостижении цели — добавить эзетимиб.',
+  moderate: 'Достичь ХС ЛНП < 2,6 ммоль/л. Статин умеренной интенсивности по показаниям.',
+  low:      'Достичь ХС ЛНП < 3,0 ммоль/л. Коррекция образа жизни; статины, как правило, не требуются.'
+};
+
+function fmtLdl(x) {
+  return x.toFixed(1).replace('.', ',');
+}
+
+// Собирает карточки результата модуля «СС-риск и липиды»
+function buildScore2Result(v) {
+  var html = '';
+  var copy = '';
+  var ctx = {
+    dm: v.dm, tod: v.tod, dm20: v.dm20, mi: v.mi, stroke: v.stroke, tia: v.tia,
+    vasc: v.vasc, sghs: v.sghs, htn: v.htn, smoking: v.smoking, events2: v.events2,
+    tchol: v.tchol, hdl: v.hdl, ldl: v.ldl, sbp: v.sbp, egfr: v.egfr,
+    dur: score2DurYears(v.age, v.dmAge, v.dm20)
+  };
+  // Критерий «ЛПНП > 4,9 → высокий риск»: лабораторный ЛПНП, а если его нет —
+  // расчётный по Фридвальду (применим при ТГ ≤ 4,5 ммоль/л)
+  if (ctx.ldl === null && v.tg !== null && isFinite(v.tg) && v.tg <= 4.5) {
+    var fwLdl = friedewaldLdl(v.tchol, v.hdl, v.tg);
+    if (fwLdl !== null && fwLdl > 0) ctx.ldl = fwLdl;
+  }
+
+  var cat = score2ClinicalCat(ctx);
+  var modelLabel = null;
+  var riskPct = null;
+
+  if (cat === null) {
+    if (v.age < 40 || v.age > 89) {
+      html += makeResultCard('Сердечно-сосудистый риск (SCORE2)', '—',
+        'Шкала SCORE2 неприменима для возраста ' + v.age + ' лет',
+        'low', '', 'SCORE2 валидирована для возраста 40–89 лет.');
+      copy = 'SCORE2 неприменима (возраст ' + v.age + ' лет)';
+    } else {
+      var risk = null;
+      if (v.age <= 69 && v.dm) {
+        modelLabel = 'SCORE2-Diabetes';
+        // Поле в UI — %, модель авторов считает в ммоль/моль (IFCC): ммоль/моль = (% − 2,15) × 10,93
+      var hba1cMmol = (v.hba1c - 2.15) * 10.93;
+      risk = score2DiabetesCalc(v.age, v.sex, v.dmAge, v.smoking, v.sbp, v.tchol, v.hdl, hba1cMmol, v.egfr, 'veryhigh');
+      } else if (v.age <= 69) {
+        modelLabel = 'SCORE2';
+        risk = score2Calc(v.age, v.sex, v.smoking, v.sbp, v.tchol, v.hdl, false, 'veryhigh');
+      } else {
+        modelLabel = 'SCORE2-OP';
+        risk = score2opCalc(v.age, v.sex, v.smoking, v.sbp, v.tchol, v.hdl, v.dm, 'veryhigh');
+      }
+      riskPct = risk.risk;
+      var tcat = score2ThresholdCat(modelLabel === 'SCORE2-Diabetes' ? 'diab' : modelLabel === 'SCORE2-OP' ? 'op' : 'score2', riskPct, v.age);
+      // При СД — категория по максимуму: правила СД + пороги модели + клинические «высокие» факторы
+      if (v.dm) {
+        var dmcat = score2DmRuleCat(ctx);
+        var floorHigh = ctx.tchol > 8 || (ctx.ldl !== null && ctx.ldl > 4.9) || ctx.sbp >= 180 ||
+                        (ctx.egfr !== null && ctx.egfr >= 30 && ctx.egfr < 60) || ctx.sghs;
+        var minIdx = Math.max(SCORE2_CAT_ORDER.indexOf(dmcat), floorHigh ? SCORE2_CAT_ORDER.indexOf('high') : 0);
+        tcat = SCORE2_CAT_ORDER[Math.max(SCORE2_CAT_ORDER.indexOf(tcat), minIdx)];
+      }
+      cat = tcat;
+      html += makeResultCard('Сердечно-сосудистый риск (' + modelLabel + ')',
+        riskPct.toFixed(1).replace('.', ',') + ' %',
+        '10-летний риск СС-событий · ' + SCORE2_CAT_LABELS[cat],
+        (cat === 'veryhigh' || cat === 'high') ? 'high' : (cat === 'moderate' ? 'moderate' : 'low'),
+        '', 'Регион: очень высокий риск (Россия). ' + SCORE2_CAT_LABELS[cat] + '.');
+      copy = modelLabel + ': риск ' + riskPct.toFixed(1).replace('.', ',') + '% — ' + SCORE2_CAT_LABELS[cat].toLowerCase();
+    }
+  } else {
+    html += makeResultCard('Сердечно-сосудистый риск', '—',
+      'SCORE2 не применяется · ' + SCORE2_CAT_LABELS[cat],
+      'high', '', 'Риск определён клинически (рос. КР 2023); расчёт SCORE2 не требуется.');
+    copy = 'Категория риска: ' + SCORE2_CAT_LABELS[cat].toLowerCase() + ' (клинически)';
+  }
+
+  // Липидные формулы (ЛПНП) — карточка выводится всегда (не-ЛПНП доступен и без ТГ)
+  var lip = null;
+  var lipParts = [];
+  if (v.tg !== null && isFinite(v.tg)) {
+    lip = calcLipids(v.tchol, v.hdl, v.tg, v.ldl);
+    if (lip.friedewald !== null) lipParts.push('Фридвальд ' + lip.friedewald.toFixed(2).replace('.', ','));
+    if (lip.sampson !== null) lipParts.push('Сампсон ' + lip.sampson.toFixed(2).replace('.', ','));
+    if (lip.martinHopkins !== null) lipParts.push('Мартин-Хопкинс ' + lip.martinHopkins.toFixed(2).replace('.', ','));
+    if (v.ldl !== null) lipParts.push('лаборатория ' + v.ldl.toFixed(2).replace('.', ','));
+  }
+  var lipText = 'ЛПНП: ' + (lipParts.length ? lipParts.join(' · ') : 'введите триглицериды для расчёта ЛПНП по формулам');
+  if (lip && lip.tgTooHighFriedewald) lipText += ' · Фридвальд неприменим при ТГ > 4,5 ммоль/л';
+  var lipTipId = 'lip_tip_' + Date.now();
+  // не-ЛПНП = ХС − ЛПВП — вычислим всегда, ТГ не нужны
+  var lipNonHdl = (v.tchol && v.hdl && isFinite(v.tchol) && isFinite(v.hdl)) ? v.tchol - v.hdl : null;
+  var lipValue = (lipNonHdl !== null ? 'не-ЛПНП ' + lipNonHdl.toFixed(2).replace('.', ',') : '—') +
+    '<span class="info-icon" id="' + lipTipId + '" style="cursor:help;font-size:16px;opacity:0.6;vertical-align:middle;margin-left:6px;">ⓘ</span>';
+  html += makeResultCard('Липиды',
+    lipValue,
+    lipParts.length ? '' : 'ТГ не введены', 'low', lipText, '');
+  setTimeout(function() {
+    var icon = document.getElementById(lipTipId);
+    if (icon) setupTooltipTrigger(icon, 'не-ЛПНП = ХС − ЛПВП (общий холестерин минус ЛПВП)');
+  }, 50);
+  copy += (copy ? '; ' : '') + 'не-ЛПНП ' + (lipNonHdl !== null ? lipNonHdl.toFixed(2).replace('.', ',') : '—');
+  if (lip && lip.friedewald !== null) {
+    copy += '; ЛПНП (Фридвальд) ' + lip.friedewald.toFixed(2).replace('.', ',');
+  }
+  if (v.ldl !== null) {
+    copy += '; ЛПНП (лаборатория) ' + v.ldl.toFixed(2).replace('.', ',');
+  }
+
+  // Цель терапии и рекомендации (только если категория определена)
+  if (cat !== null) {
+    var target = SCORE2_LDL_TARGETS[cat];
+    var reduce = '';
+    var curLdl = null;
+    if (lip && lip.friedewald !== null) curLdl = lip.friedewald;
+    else if (v.ldl !== null) curLdl = v.ldl;
+    if (curLdl !== null && curLdl > target) {
+      reduce = ' Снизить ХС ЛНП на ' + Math.round((curLdl - target) / curLdl * 100) + '% (до < ' + fmtLdl(target) + ' ммоль/л).';
+    }
+    html += makeResultCard('Цель терапии', 'ХС ЛНП < ' + fmtLdl(target) + ' ммоль/л',
+      SCORE2_CAT_LABELS[cat],
+      (cat === 'extreme' || cat === 'veryhigh' || cat === 'high') ? 'high' : (cat === 'moderate' ? 'moderate' : 'low'),
+      SCORE2_RECOMMENDATIONS[cat] + reduce, '');
+    copy += (copy ? '. ' : '') + 'Цель ХС ЛНП < ' + fmtLdl(target) + ' ммоль/л';
+    if (reduce) {
+      var pct = Math.round((curLdl - target) / curLdl * 100);
+      copy += '; снизить ХС ЛНП на ' + pct + '%';
+    }
+  }
+
+  return { html: html, copy: copy };
+}
+
+// ===================================================
 //  ГЛАВНЫЙ РАСЧЁТ
 // ===================================================
 function calculate() {
@@ -1294,10 +1526,21 @@ function calculate() {
   var hct    = parseNum('hct');
   var plt    = parseNum('plt');
   var wbc    = parseNum('wbc');
+  var tchol  = parseNum('tchol');
+  var hdl    = parseNum('hdl');
+  var tg     = parseNum('tg');
+  var ldlLab = parseNum('ldl');
+  var hba1c  = parseNum('hba1c');
+  var dmAge  = parseNum('dm_age');
+  var smokingEl = document.getElementById('smoking');
+  var smoking = !!smokingEl && smokingEl.value === 'yes';
+  var dm      = !!document.getElementById('cb_dm') && document.getElementById('cb_dm').checked;
+  var dm20    = !!document.getElementById('dm_age20') && document.getElementById('dm_age20').checked;
+  var dmTod   = !!document.getElementById('cb_dm_tod') && document.getElementById('cb_dm_tod').checked;
 
   if (!age) errors.push({ field: 'age', msg: 'Введите возраст' });
 
-  var sexRequiredScales = ['ckdepi', 'cg', 'crusade', 'cha2ds2', 'pesi', 'precise'];
+  var sexRequiredScales = ['ckdepi', 'cg', 'crusade', 'cha2ds2', 'pesi', 'precise', 'score2'];
   var needSex = sexRequiredScales.some(function(scale) { return isScaleActive(scale); });
   if (needSex && (!sex || sex === '')) errors.push({ field: 'sex', msg: 'Выберите пол' });
 
@@ -1352,6 +1595,24 @@ function calculate() {
     if (!weight) errors.push({ field: 'weight', msg: 'Введите вес (для расчёта КлКр в PRECISE-DAPT)' });
     if (!hb)     errors.push({ field: 'hb',     msg: 'Введите гемоглобин (для PRECISE-DAPT)' });
     if (!wbc)    errors.push({ field: 'wbc',    msg: 'Введите лейкоциты (для PRECISE-DAPT)' });
+  }
+
+  // SCORE2 (СС-риск и липиды): обязательные поля
+  if (isScaleActive('score2')) {
+    if (tchol === null) errors.push({ field: 'tchol', msg: 'Введите общий холестерин (для SCORE2)' });
+    else if (tchol <= 0) errors.push({ field: 'tchol', msg: 'Общий холестерин должен быть больше 0' });
+    if (hdl === null)   errors.push({ field: 'hdl',   msg: 'Введите ЛПВП (для SCORE2)' });
+    else if (hdl <= 0) errors.push({ field: 'hdl', msg: 'ЛПВП должен быть больше 0' });
+    if (!sbp)   errors.push({ field: 'sbp',   msg: 'Введите систолическое АД (для SCORE2)' });
+    if (tg !== null && tg < 0) errors.push({ field: 'tg', msg: 'Триглицериды не могут быть отрицательными' });
+    if (ldlLab !== null && ldlLab <= 0) errors.push({ field: 'ldl', msg: 'ЛПНП (лаборатория) должен быть больше 0' });
+    if (creat !== null && creat <= 0) errors.push({ field: 'creatinine', msg: 'Креатинин должен быть больше 0' });
+    if (dm) {
+      if (!hba1c) errors.push({ field: 'hba1c', msg: 'Введите HbA1c (для SCORE2-Diabetes)' });
+      if (!dm20 && !dmAge) errors.push({ field: 'dm_age', msg: 'Укажите возраст дебюта СД или отметьте «длительность ≥ 20 лет»' });
+      if (dmAge !== null && age !== null && dmAge > age) errors.push({ field: 'dm_age', msg: 'Возраст дебюта СД не может быть больше возраста пациента' });
+      if (!creat) errors.push({ field: 'creatinine', msg: 'Введите креатинин (для SCORE2-Diabetes)' });
+    }
   }
 
   var resultsHTML = '';
@@ -1846,6 +2107,24 @@ function calculate() {
       }, 50);
       copyLines.push('PRECISE-DAPT: ' + pd.score + ' ' + pluralizeBalls(pd.score) + ' — ' + pdRiskLabel.toLowerCase());
     }
+  }
+
+  // --- SCORE2: сердечно-сосудистый риск и липиды ---
+  if (isScaleActive('score2')) {
+    var s2egfr = null;
+    if (age && sex && creat) {
+      s2egfr = calcCKDEPI(age, sex, creat);
+    }
+    var s2ctx = {
+      age: age, sex: sex, sbp: sbp, tchol: tchol, hdl: hdl, tg: tg, ldl: ldlLab,
+      hba1c: hba1c, dmAge: dmAge, dm: dm, dm20: dm20, tod: dmTod,
+      mi: cb('cb_mi'), stroke: cb('cb_stroke'), tia: cb('cb_tia'), vasc: cb('cb_vasc'),
+      sghs: cb('cb_sghs'), htn: cb('cb_htn'), events2: cb('score2_2events'),
+      smoking: smoking, egfr: s2egfr
+    };
+    var s2out = buildScore2Result(s2ctx);
+    if (s2out.html) resultsHTML += s2out.html;
+    if (s2out.copy) copyLines.push(s2out.copy);
   }
 
   if (errors.length > 0) {
