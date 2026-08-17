@@ -686,6 +686,11 @@ function updateFieldVisibility() {
   var isOutpatient = (typeof getCurrentMode === 'function') && getCurrentMode() === 'outpatient';
   setVisible('field-mi',       isOutpatient && anyScale);
   setVisible('field-sghs',     isOutpatient && anyScale);
+  setVisible('field-fh-cvd',   isOutpatient && anyScale);
+  setVisible('field-fh-lip',   isOutpatient && anyScale);
+  setVisible('field-asb50',    isOutpatient && anyScale);
+  setVisible('field-ath25',    isOutpatient && anyScale);
+  setVisible('field-gosghs',   isOutpatient && anyScale);
   setVisible('field-dm-tod',   isOutpatient && anyScale);
 
   // Внутри блока SCORE2: HbA1c и дебют СД — только при отмеченном диабете
@@ -1308,28 +1313,42 @@ function score2DurYears(age, dmAge, dmAge20) {
 }
 
 // Клиническая категория риска (без SCORE2). Возвращает ключ или null,
+// Подсчёт факторов риска по таблице А3.3 рос. КР 2023 (для правил СД и СГХС):
+// возраст (м >40 / ж >55), курение, АГ, отягощённая наследственность,
+// ожирение (ИМТ >25), ХБП (СКФ <60), семейная гиперлипидемия.
+// includeAge=false — для проверки «молодые <50 лет без ФР» (возраст не считаем,
+// иначе «умеренный» был бы недостижим для мужчин 40–49).
+function score2RfCount(ctx, includeAge) {
+  var rf = 0;
+  if (includeAge !== false && ctx.age !== null && ctx.age > 40 && (ctx.sex !== 'f' || ctx.age > 55)) rf++;
+  if (ctx.smoking) rf++;
+  if (ctx.htn || ctx.sbp >= 140) rf++;
+  if (ctx.fhCvd) rf++;
+  if (ctx.weight !== null && ctx.height !== null && ctx.height > 0 &&
+      ctx.weight / Math.pow(ctx.height / 100, 2) > 25) rf++;
+  if (ctx.egfr !== null && ctx.egfr < 60) rf++;
+  if (ctx.fhLip) rf++;
+  return rf;
+}
+
+// Клиническая категория риска (рос. КР 2023). Возвращает категорию, либо null,
 // если нужен расчёт по SCORE2.
 function score2ClinicalCat(ctx) {
-  var assz = ctx.mi || ctx.stroke || ctx.tia || ctx.vasc;
+  var assz = ctx.mi || ctx.stroke || ctx.tia || ctx.vasc || ctx.asb50; // АСБ >50% = АССЗ по данным обследования
   var ckd = ctx.egfr;
+  var rf = score2RfCount(ctx);
 
-  if (ctx.events2) return 'extreme';                                     // 2 СС-события за 2 года
-  if (assz && (ctx.dm || ctx.sghs)) return 'extreme';                    // АССЗ + СД2 и/или СГХС
-  if (assz) return 'veryhigh';                                           // документированное АССЗ
-  if (ctx.dm && (ctx.tod || ctx.dm20 || (ctx.dur !== null && ctx.dur >= 20))) return 'veryhigh'; // СД + ПOM или ≥20 лет
+  if (ctx.events2) return 'extreme';                                     // ≥2 СС-события за 2 года
+  if (ctx.gosghs) return 'extreme';                                      // гомозиготная СГХС
+  if (assz) return 'veryhigh';                                           // документированное АССЗ (в т.ч. АСБ >50%)
+  if (ctx.sghs && (ctx.dm || rf >= 1)) return 'veryhigh';                // СГХС + ФР (или СД) — очень высокий
+  if (ctx.sghs) return 'high';                                           // СГХС без ФР
   if (ckd !== null && ckd < 30) return 'veryhigh';                       // тяжёлая ХБП
+  if (ctx.dm && (ctx.tod || ctx.dm20 || (ctx.dur !== null && ctx.dur > 20))) return 'veryhigh'; // СД + ПOM или >20 лет
 
-  if (ctx.tchol > 8 || ctx.ldl > 4.9 || ctx.sbp >= 180) {
-    // У пациентов с СД модель SCORE2-Diabetes считается всегда (категория по максимуму),
-    // поэтому клинические «высокие» факторы для них не блокируют расчёт (учтутся как floor)
-    if (!ctx.dm) return 'high';
-  }
-  if (ckd !== null && ckd >= 30 && ckd < 60) {
-    if (!ctx.dm) return 'high';
-  }
-  if (ctx.sghs && !ctx.dm) return 'high';
-  // При СД без ПOM/≥20 лет SCORE2-Diabetes считается всегда;
-  // правила СД (длительность ≥10 лет, ФР) учтены при категории «по максимуму».
+  // Клинические «высокие» критерии (ЛПНП ≥4,9, ОХ >8, АД ≥180/110, ХБП 30–59, атеросклероз 25–49%)
+  // НЕ блокируют расчёт: модель SCORE2 считается, категория = максимум (см. buildScore2Result).
+  // Это важно: SCORE2 ≥10% (очень высокий) не должен «затираться» до «высокого» чекбоксом 25–49%.
   return null;
 }
 
@@ -1348,10 +1367,18 @@ function score2ThresholdCat(model, risk, age) {
 
 // Правила СД (рос. КР 2023) — для категории «по максимуму»
 function score2DmRuleCat(ctx) {
-  if (ctx.tod || ctx.dm20 || (ctx.dur !== null && ctx.dur >= 20)) return 'veryhigh';
+  if (ctx.tod || ctx.dm20 || (ctx.dur !== null && ctx.dur > 20)) return 'veryhigh';
   var dur = ctx.dur;
+  var rf = score2RfCount(ctx);
+  // Очень высокий: СД + ≥3 ФР
+  if (rf >= 3) return 'veryhigh';
+  // Высокий: СД без ПОМ, ≥10 лет
   if (dur !== null && dur >= 10) return 'high';
-  if (ctx.htn || ctx.smoking) return 'high';
+  // Умеренный: молодые пациенты (СД2 < 50 лет), длительность < 10 лет, без ФР
+  // (возрастной ФР не считаем — иначе «молодой без ФР» недостижим)
+  if (ctx.age !== null && ctx.age < 50 && dur < 10 && score2RfCount(ctx, false) === 0) return 'moderate';
+  // Высокий: СД с ФР (1–2)
+  if (rf >= 1) return 'high';
   return 'moderate';
 }
 
@@ -1373,10 +1400,87 @@ var SCORE2_CAT_LABELS = {
   low:      'Низкий риск'
 };
 
+// Тексты тултипов (ⓘ в заголовке карточки) — по образцу MDCalc
+var SCORE2_TIP_TEXTS = {
+  diab:
+    'Рассчитывает 10-летний риск сердечно-сосудистых событий у пациентов с сахарным диабетом 2 типа. Применяется у взрослых 40–69 лет с СД 2 типа.\n\n' +
+    'НЕ ПРИМЕНЯТЬ, ЕСЛИ:\n' +
+    '— известное атеросклеротическое ССЗ (ИМ, инсульт и др.) — риск и так очень высокий;\n' +
+    '— СД 1 типа;\n' +
+    '— возраст 40–69 лет без диабета (используйте SCORE2);\n' +
+    '— возраст ≥ 70 лет (используйте SCORE2-OP).\n\n' +
+    'КАК ИНТЕРПРЕТИРОВАТЬ:\n' +
+    'Оценивайте риск в контексте ведения диабета: длительность СД, контроль гликемии, функция почек, микрососудистые осложнения. Результат — помощь клиническому суждению. Пересматривайте риск периодически (после изменений гликемии, курения, АД, липидов, функции почек). При пограничном риске учитывайте дополнительные модификаторы (липопротеин(а), СРБ, альбуминурия) или визуализацию.\n\n' +
+    'КАТЕГОРИИ РИСКА ПРИ СД 2 ТИПА:\n' +
+    '— очень высокий: ≥ 20%;\n' +
+    '— высокий: 10% – < 20%;\n' +
+    '— умеренный: 5% – < 10%;\n' +
+    '— низкий: < 5%.',
+  score2:
+    'Рассчитывает 10-летний риск сердечно-сосудистых событий у людей 40–69 лет без установленного ССЗ и без диабета.\n\n' +
+    'НЕ ПРИМЕНЯТЬ, ЕСЛИ:\n' +
+    '— известное атеросклеротическое ССЗ;\n' +
+    '— сахарный диабет (используйте SCORE2-Diabetes);\n' +
+    '— тяжёлая ХБП (СКФ < 30);\n' +
+    '— семейная гиперхолестеринемия;\n' +
+    '— возраст ≥ 70 лет (используйте SCORE2-OP).\n\n' +
+    'КАК ИНТЕРПРЕТИРОВАТЬ:\n' +
+    'Результат — помощь клиническому суждению. У молодых умеренный 10-летний риск может отражать существенный пожизненный риск; у пожилых конкурирующая не-сердечно-сосудистая смертность может снижать пользу лечения. Пересматривайте риск периодически (после изменений курения, АД, липидов).\n\n' +
+    'КАТЕГОРИИ РИСКА (рос. КР 2023):\n' +
+    '— очень высокий: ≥ 10% (50–69 лет), ≥ 7,5% (40–49 лет);\n' +
+    '— высокий: 5% – < 10% (50–69), 2,5% – < 7,5% (40–49);\n' +
+    '— умеренный: 1% – < 5% (50–69), 1% – < 2,5% (40–49);\n' +
+    '— низкий: < 1%.',
+  op:
+    'Рассчитывает 10-летний риск сердечно-сосудистых событий у людей 70–89 лет (диабет учитывается внутри модели как фактор риска).\n\n' +
+    'НЕ ПРИМЕНЯТЬ, ЕСЛИ:\n' +
+    '— известное ССЗ — риск и так очень высокий;\n' +
+    '— тяжёлая ХБП (СКФ < 30);\n' +
+    '— возраст до 70 лет (используйте SCORE2 или SCORE2-Diabetes).\n\n' +
+    'КАК ИНТЕРПРЕТИРОВАТЬ:\n' +
+    'Оценивайте риск с учётом хрупкости, ожидаемой продолжительности жизни, конкурирующей не-сердечно-сосудистой смертности, полипрагмазии и переносимости лечения. Совместное решение с пациентом особенно важно у пожилых. Пересматривайте риск периодически (после изменений курения, АД, липидов).\n\n' +
+    'КАТЕГОРИИ РИСКА (рос. КР 2023):\n' +
+    '— очень высокий: ≥ 15%;\n' +
+    '— высокий: 7,5% – < 15%;\n' +
+    '— умеренный: 1% – < 7,5%;\n' +
+    '— низкий: < 1%.',
+  dmRules:
+    'SCORE2 неприменима для этого возраста. Категория определена по клиническим правилам СД (рос. КР 2023): поражение органов-мишеней, длительность диабета и факторы риска.'
+};
+
+// Таблица А3.5 проекта КР «Нарушения липидного обмена» (09.04.2026):
+// расчётное снижение ХС ЛНП при различных вариантах гиполипидемической терапии
+var SCORE2_THERAPY_TABLE = [
+  { label: 'Эзетимиб', pct: 25 },
+  { label: 'Бемпедоевая кислота', pct: 25 },
+  { label: 'Умеренная статинотерапия', pct: 30 },
+  { label: 'Бемпедоевая кислота с эзетимибом', pct: 45 },
+  { label: 'Интенсивная статинотерапия', pct: 50 },
+  { label: 'Инклисиран', pct: 50 },
+  { label: 'Бемпедоевая кислота со статином', pct: 60 },
+  { label: 'Алирокумаб / эволокумаб', pct: 60 },
+  { label: 'Интенсивная статинотерапия + эзетимиб', pct: 65 },
+  { label: 'Бемпедоевая кислота со статином и эзетимибом', pct: 70 },
+  { label: 'Алирокумаб / эволокумаб / инклисиран + интенсивная статинотерапия', pct: 75 },
+  { label: 'Алирокумаб / эволокумаб / инклисиран + интенсивная статинотерапия + эзетимиб', pct: 85 },
+  { label: 'Алирокумаб / эволокумаб / инклисиран + интенсивная статинотерапия + эзетимиб + бемпедоевая кислота', pct: 90 }
+];
+
+// Варианты терапии, достигающие нужного снижения: не слабее требуемого
+// и не «сильно сильнее» (не более +25 п.п.), иначе — чрезмерно агрессивные схемы
+function score2TherapyOptions(needPct) {
+  var out = [];
+  for (var i = 0; i < SCORE2_THERAPY_TABLE.length; i++) {
+    var t = SCORE2_THERAPY_TABLE[i];
+    if (t.pct >= needPct && t.pct <= needPct + 25) out.push(t);
+  }
+  return out;
+}
+
 var SCORE2_RECOMMENDATIONS = {
-  extreme:  'Достичь ХС ЛНП < 1,0 ммоль/л. Статин в максимально переносимой дозе + эзетимиб; при недостижении цели — ингибитор PCSK9.',
-  veryhigh: 'Достичь ХС ЛНП < 1,4 ммоль/л и снизить его ≥50% от исходного. Статин в максимально переносимой дозе; при недостижении цели — добавить эзетимиб.',
-  high:     'Достичь ХС ЛНП < 1,8 ммоль/л и снизить его ≥50% от исходного. Статин средней или высокой интенсивности; при недостижении цели — добавить эзетимиб.',
+  extreme:  'Достичь ХС ЛНП < 1,0 ммоль/л.',
+  veryhigh: 'Достичь ХС ЛНП < 1,4 ммоль/л и снизить его ≥50% от исходного.',
+  high:     'Достичь ХС ЛНП < 1,8 ммоль/л и снизить его ≥50% от исходного.',
   moderate: 'Достичь ХС ЛНП < 2,6 ммоль/л. Статин умеренной интенсивности по показаниям.',
   low:      'Достичь ХС ЛНП < 3,0 ммоль/л. Коррекция образа жизни; статины, как правило, не требуются.'
 };
@@ -1392,7 +1496,9 @@ function buildScore2Result(v) {
   var ctx = {
     dm: v.dm, tod: v.tod, dm20: v.dm20, mi: v.mi, stroke: v.stroke, tia: v.tia,
     vasc: v.vasc, sghs: v.sghs, htn: v.htn, smoking: v.smoking, events2: v.events2,
-    tchol: v.tchol, hdl: v.hdl, ldl: v.ldl, sbp: v.sbp, egfr: v.egfr,
+    tchol: v.tchol, hdl: v.hdl, ldl: v.ldl, tg: v.tg, sbp: v.sbp, egfr: v.egfr,
+    age: v.age, sex: v.sex, weight: v.weight, height: v.height, fhCvd: v.fhCvd,
+    fhLip: v.fhLip, asb50: v.asb50, ath25: v.ath25, gosghs: v.gosghs,
     dur: score2DurYears(v.age, v.dmAge, v.dm20)
   };
   // Критерий «ЛПНП > 4,9 → высокий риск»: лабораторный ЛПНП, а если его нет —
@@ -1402,16 +1508,49 @@ function buildScore2Result(v) {
     if (fwLdl !== null && fwLdl > 0) ctx.ldl = fwLdl;
   }
 
+  // Клинические «высокие» критерии: не блокируют модель SCORE2 — категория по максимуму
+  var floorHigh = ctx.tchol > 8 || (ctx.ldl !== null && ctx.ldl >= 4.9) || ctx.sbp >= 180 ||
+                  (ctx.egfr !== null && ctx.egfr >= 30 && ctx.egfr < 60) || ctx.ath25;
   var cat = score2ClinicalCat(ctx);
   var modelLabel = null;
   var riskPct = null;
 
   if (cat === null) {
     if (v.age < 40 || v.age > 89) {
-      html += makeResultCard('Сердечно-сосудистый риск (SCORE2)', '—',
-        'Шкала SCORE2 неприменима для возраста ' + v.age + ' лет',
-        'low', '', 'SCORE2 валидирована для возраста 40–89 лет.');
-      copy = 'SCORE2 неприменима (возраст ' + v.age + ' лет)';
+      if (v.dm) {
+        // SCORE2 неприменима, но правила СД (рос. КР 2023) дают категорию риска и цель
+        cat = score2DmRuleCat(ctx);
+        // Клинические «высокие» факторы не теряем и здесь
+        if (floorHigh) {
+          cat = SCORE2_CAT_ORDER[Math.max(SCORE2_CAT_ORDER.indexOf(cat), SCORE2_CAT_ORDER.indexOf('high'))];
+        }
+        var dmRulesTipId = 'dmrules_tip_' + Date.now();
+        html += makeResultCard('Категория риска (правила СД)' +
+            '<span class="info-icon" id="' + dmRulesTipId + '" style="cursor:help;font-size:15px;opacity:0.6;vertical-align:middle;margin-left:6px;">ⓘ</span>',
+          SCORE2_CAT_LABELS[cat],
+          'SCORE2 неприменима для возраста ' + v.age + ' лет; категория по правилам СД (рос. КР 2023).',
+          (cat === 'veryhigh' || cat === 'high') ? 'high' : (cat === 'moderate' ? 'moderate' : 'low'),
+          '', '');
+        setTimeout(function() {
+          var dmRulesIcon = document.getElementById(dmRulesTipId);
+          if (dmRulesIcon) setupTooltipTrigger(dmRulesIcon, SCORE2_TIP_TEXTS.dmRules);
+        }, 50);
+        copy = 'Категория риска (правила СД): ' + SCORE2_CAT_LABELS[cat].toLowerCase() +
+               '; SCORE2 неприменима (возраст ' + v.age + ' лет)';
+      } else if (floorHigh) {
+        // Возраст вне диапазона SCORE2, но есть клинический «высокий» критерий — категория клинически
+        cat = 'high';
+        html += makeResultCard('Категория риска (клинически)', SCORE2_CAT_LABELS[cat],
+          'SCORE2 неприменима для возраста ' + v.age + ' лет; категория по клиническим критериям (рос. КР 2023).',
+          'high', '', '');
+        copy = 'Категория риска (клинически): ' + SCORE2_CAT_LABELS[cat].toLowerCase() +
+               '; SCORE2 неприменима (возраст ' + v.age + ' лет)';
+      } else {
+        html += makeResultCard('Сердечно-сосудистый риск (SCORE2)', '—',
+          'Шкала SCORE2 неприменима для возраста ' + v.age + ' лет',
+          'low', '', 'SCORE2 валидирована для возраста 40–89 лет.');
+        copy = 'SCORE2 неприменима (возраст ' + v.age + ' лет)';
+      }
     } else {
       var risk = null;
       if (v.age <= 69 && v.dm) {
@@ -1428,20 +1567,27 @@ function buildScore2Result(v) {
       }
       riskPct = risk.risk;
       var tcat = score2ThresholdCat(modelLabel === 'SCORE2-Diabetes' ? 'diab' : modelLabel === 'SCORE2-OP' ? 'op' : 'score2', riskPct, v.age);
-      // При СД — категория по максимуму: правила СД + пороги модели + клинические «высокие» факторы
+      // Категория по максимуму: пороги модели + правила СД (при диабете) + клинические «высокие» критерии
       if (v.dm) {
         var dmcat = score2DmRuleCat(ctx);
-        var floorHigh = ctx.tchol > 8 || (ctx.ldl !== null && ctx.ldl > 4.9) || ctx.sbp >= 180 ||
-                        (ctx.egfr !== null && ctx.egfr >= 30 && ctx.egfr < 60) || ctx.sghs;
         var minIdx = Math.max(SCORE2_CAT_ORDER.indexOf(dmcat), floorHigh ? SCORE2_CAT_ORDER.indexOf('high') : 0);
         tcat = SCORE2_CAT_ORDER[Math.max(SCORE2_CAT_ORDER.indexOf(tcat), minIdx)];
+      } else if (floorHigh) {
+        tcat = SCORE2_CAT_ORDER[Math.max(SCORE2_CAT_ORDER.indexOf(tcat), SCORE2_CAT_ORDER.indexOf('high'))];
       }
       cat = tcat;
-      html += makeResultCard('Сердечно-сосудистый риск (' + modelLabel + ')',
+      var s2TipId = 's2tip_' + Date.now();
+      var s2TipText = SCORE2_TIP_TEXTS[modelLabel === 'SCORE2-Diabetes' ? 'diab' : modelLabel === 'SCORE2-OP' ? 'op' : 'score2'];
+      html += makeResultCard('Сердечно-сосудистый риск (' + modelLabel + ')' +
+          '<span class="info-icon" id="' + s2TipId + '" style="cursor:help;font-size:15px;opacity:0.6;vertical-align:middle;margin-left:6px;">ⓘ</span>',
         riskPct.toFixed(1).replace('.', ',') + ' %',
         '10-летний риск СС-событий · ' + SCORE2_CAT_LABELS[cat],
         (cat === 'veryhigh' || cat === 'high') ? 'high' : (cat === 'moderate' ? 'moderate' : 'low'),
         '', 'Регион: очень высокий риск (Россия). ' + SCORE2_CAT_LABELS[cat] + '.');
+      setTimeout(function() {
+        var tipIcon = document.getElementById(s2TipId);
+        if (tipIcon) setupTooltipTrigger(tipIcon, s2TipText);
+      }, 50);
       copy = modelLabel + ': риск ' + riskPct.toFixed(1).replace('.', ',') + '% — ' + SCORE2_CAT_LABELS[cat].toLowerCase();
     }
   } else {
@@ -1486,22 +1632,49 @@ function buildScore2Result(v) {
   // Цель терапии и рекомендации (только если категория определена)
   if (cat !== null) {
     var target = SCORE2_LDL_TARGETS[cat];
-    var reduce = '';
     var curLdl = null;
     if (lip && lip.friedewald !== null) curLdl = lip.friedewald;
     else if (v.ldl !== null) curLdl = v.ldl;
+    var pct = null;
     if (curLdl !== null && curLdl > target) {
-      reduce = ' Снизить ХС ЛНП на ' + Math.round((curLdl - target) / curLdl * 100) + '% (до < ' + fmtLdl(target) + ' ммоль/л).';
+      pct = Math.round((curLdl - target) / curLdl * 100);
     }
-    html += makeResultCard('Цель терапии', 'ХС ЛНП < ' + fmtLdl(target) + ' ммоль/л',
+    // Объединённый блок «Цель терапии и варианты» (широкий, 2 колонки)
+    var therapyDetails = '<div class="therapy-grid">';
+    therapyDetails += '<div><div class="therapy-col-title">Цель</div>' +
+      'ХС ЛНП < ' + fmtLdl(target) + ' ммоль/л' +
+      (pct !== null ? '<br>Снижение на ' + pct + '%' : '') +
+      '<br><br>' + SCORE2_RECOMMENDATIONS[cat] + '</div>';
+    therapyDetails += '<div><div class="therapy-col-title">Варианты терапии</div>';
+    if (pct !== null) {
+      var opts = score2TherapyOptions(pct);
+      if (opts.length > 0) {
+        var optList = [];
+        for (var oi = 0; oi < opts.length; oi++) optList.push('— ' + opts[oi].label + ' (≈' + opts[oi].pct + '%)');
+        therapyDetails += optList.join('<br>');
+      } else {
+        therapyDetails += 'Стандартные схемы не достигают цели — рассмотрите максимальную комбинацию: алирокумаб / эволокумаб / инклисиран + интенсивная статинотерапия + эзетимиб + бемпедоевая кислота (≈90%).';
+      }
+    } else if (curLdl === null) {
+      therapyDetails += 'Введите триглицериды или лабораторный ЛПНП, чтобы рассчитать необходимое снижение.';
+    } else {
+      therapyDetails += 'Цель уже достигнута — ЛПНП на целевом уровне.';
+    }
+    therapyDetails += '</div></div>';
+    var thTipId = 'thtip_' + Date.now();
+    html += makeResultCard('Цель терапии и варианты' +
+        '<span class="info-icon" id="' + thTipId + '" style="cursor:help;font-size:15px;opacity:0.6;vertical-align:middle;margin-left:6px;">ⓘ</span>',
+      'ХС ЛНП < ' + fmtLdl(target) + ' ммоль/л',
       SCORE2_CAT_LABELS[cat],
       (cat === 'extreme' || cat === 'veryhigh' || cat === 'high') ? 'high' : (cat === 'moderate' ? 'moderate' : 'low'),
-      SCORE2_RECOMMENDATIONS[cat] + reduce, '');
+      therapyDetails, '',
+      'card-span-2');
+    setTimeout(function() {
+      var thIcon = document.getElementById(thTipId);
+      if (thIcon) setupTooltipTrigger(thIcon, 'Расчётное снижение по таблице А3.5 КР «Нарушения липидного обмена» (проект, 09.04.2026). Выбор терапии — на усмотрение врача.');
+    }, 50);
     copy += (copy ? '. ' : '') + 'Цель ХС ЛНП < ' + fmtLdl(target) + ' ммоль/л';
-    if (reduce) {
-      var pct = Math.round((curLdl - target) / curLdl * 100);
-      copy += '; снизить ХС ЛНП на ' + pct + '%';
-    }
+    if (pct !== null) copy += '; снизить ХС ЛНП на ' + pct + '%';
   }
 
   return { html: html, copy: copy };
@@ -1607,7 +1780,9 @@ function calculate() {
     if (tg !== null && tg < 0) errors.push({ field: 'tg', msg: 'Триглицериды не могут быть отрицательными' });
     if (ldlLab !== null && ldlLab <= 0) errors.push({ field: 'ldl', msg: 'ЛПНП (лаборатория) должен быть больше 0' });
     if (creat !== null && creat <= 0) errors.push({ field: 'creatinine', msg: 'Креатинин должен быть больше 0' });
-    if (dm) {
+    if (dm && age !== null && age >= 40 && age <= 69) {
+      // HbA1c и креатинин нужны только для SCORE2-Diabetes (40–69 лет);
+      // для 70–89 (SCORE2-OP) и вне диапазона SCORE2 они не используются
       if (!hba1c) errors.push({ field: 'hba1c', msg: 'Введите HbA1c (для SCORE2-Diabetes)' });
       if (!dm20 && !dmAge) errors.push({ field: 'dm_age', msg: 'Укажите возраст дебюта СД или отметьте «длительность ≥ 20 лет»' });
       if (dmAge !== null && age !== null && dmAge > age) errors.push({ field: 'dm_age', msg: 'Возраст дебюта СД не может быть больше возраста пациента' });
@@ -2120,6 +2295,8 @@ function calculate() {
       hba1c: hba1c, dmAge: dmAge, dm: dm, dm20: dm20, tod: dmTod,
       mi: cb('cb_mi'), stroke: cb('cb_stroke'), tia: cb('cb_tia'), vasc: cb('cb_vasc'),
       sghs: cb('cb_sghs'), htn: cb('cb_htn'), events2: cb('score2_2events'),
+      fhCvd: cb('cb_fh_cvd'), fhLip: cb('cb_fh_lip'), asb50: cb('cb_asb50'),
+      ath25: cb('cb_ath25'), gosghs: cb('cb_gosghs'), weight: weight, height: height,
       smoking: smoking, egfr: s2egfr
     };
     var s2out = buildScore2Result(s2ctx);

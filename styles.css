@@ -753,6 +753,24 @@ select option {
 
 .card-span-2 { grid-column: span 2; }
 
+/* Объединённый блок «Цель терапии и варианты»: широкая карточка в 2 колонки */
+.therapy-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 20px;
+}
+.therapy-col-title {
+  font-weight: 800;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+@media (max-width: 560px) {
+  .therapy-grid { grid-template-columns: 1fr; }
+}
+
 /* Сводка ARC-HBR */
 .arc-summary { display: flex; gap: 14px; font-size: 13px; margin-bottom: 8px; align-items: center; }
 .arc-summary .arc-num {

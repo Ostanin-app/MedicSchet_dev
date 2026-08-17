@@ -29,7 +29,7 @@ function saveUndoState() {
   var sexInput = document.getElementById('sex');
   if (sexInput) state['sex'] = sexInput.value;
 
-  var commonCbIds = ['cb_dm','cb_hf','cb_htn','cb_stroke','cb_tia','cb_embolism','cb_vte','cb_vasc','cb_verapamil','cb_mi','cb_sghs','cb_dm_tod'];
+  var commonCbIds = ['cb_dm','cb_hf','cb_htn','cb_stroke','cb_tia','cb_embolism','cb_vte','cb_vasc','cb_verapamil','cb_mi','cb_sghs','cb_dm_tod','cb_fh_cvd','cb_fh_lip','cb_asb50','cb_ath25','cb_gosghs'];
   commonCbIds.forEach(function(id) {
     var el = document.getElementById(id);
     if (el) state[id] = el.checked;
@@ -129,7 +129,7 @@ function performUndo() {
   syncSexFromHidden();
   syncSmokingFromHidden();
 
-  var commonCbIds = ['cb_dm','cb_hf','cb_htn','cb_stroke','cb_tia','cb_embolism','cb_vte','cb_vasc','cb_verapamil','cb_mi','cb_sghs','cb_dm_tod'];
+  var commonCbIds = ['cb_dm','cb_hf','cb_htn','cb_stroke','cb_tia','cb_embolism','cb_vte','cb_vasc','cb_verapamil','cb_mi','cb_sghs','cb_dm_tod','cb_fh_cvd','cb_fh_lip','cb_asb50','cb_ath25','cb_gosghs'];
   commonCbIds.forEach(function(id) {
     var el = document.getElementById(id);
     if (el && prevState.hasOwnProperty(id)) {
@@ -264,7 +264,7 @@ function initUndoTracking() {
   });
 
   var allTrackedIds = [
-    'cb_dm','cb_hf','cb_htn','cb_stroke','cb_tia','cb_embolism','cb_vte','cb_vasc','cb_verapamil','cb_mi','cb_sghs','cb_dm_tod','smoking',
+    'cb_dm','cb_hf','cb_htn','cb_stroke','cb_tia','cb_embolism','cb_vte','cb_vasc','cb_verapamil','cb_mi','cb_sghs','cb_dm_tod','cb_fh_cvd','cb_fh_lip','cb_asb50','cb_ath25','cb_gosghs','smoking',
     'grace_killip',
     'grace_arrest','grace_st','grace_enzymes',
     'crusade_female','crusade_hf','crusade_vasc','crusade_dm',
@@ -543,7 +543,7 @@ function resetAllFields() {
   if (smokeEl) smokeEl.value = 'no';
   syncSmokingFromHidden();
 
-  var commonCbs = ['cb_dm','cb_hf','cb_htn','cb_stroke','cb_tia','cb_embolism','cb_vte','cb_vasc','cb_verapamil','cb_mi','cb_sghs','cb_dm_tod'];
+  var commonCbs = ['cb_dm','cb_hf','cb_htn','cb_stroke','cb_tia','cb_embolism','cb_vte','cb_vasc','cb_verapamil','cb_mi','cb_sghs','cb_dm_tod','cb_fh_cvd','cb_fh_lip','cb_asb50','cb_ath25','cb_gosghs'];
   commonCbs.forEach(function(id) {
     var el = document.getElementById(id);
     if (el) el.checked = false;
@@ -600,9 +600,9 @@ function fillDemo(scenario) {
   resetAllFields();
   undoStack = [];
 
-  // Демо-сценарий «Липиды» относится к поликлиническому режиму,
+  // Демо-сценарии «Липиды» относятся к поликлиническому режиму,
   // остальные (ОКС/ФП/ТЭЛА) — к стационарному.
-  if (scenario === 'lipids') {
+  if (scenario.indexOf('lipids') === 0) {
     saveMode('outpatient');
   } else if (getCurrentMode() !== 'emergency') {
     saveMode('emergency');
@@ -685,6 +685,69 @@ function fillDemo(scenario) {
     document.getElementById('tg').value = 1.5;
     var smokingEl = document.getElementById('smoking');
     if (smokingEl) smokingEl.value = 'no';
+    toggleGroup('lipids');
+  } else if (scenario === 'lipids_dm') {
+    // СД 2 типа 8 лет → SCORE2-Diabetes; ФР: возраст (м>40) + ожирение (ИМТ ~28) → высокий риск
+    document.getElementById('age').value = 60;
+    document.getElementById('sex').value = 'm';
+    document.getElementById('height').value = 172;
+    document.getElementById('weight').value = 84;
+    document.getElementById('sbp').value = 135;
+    document.getElementById('creatinine').value = 88;
+    document.getElementById('tchol').value = 5.8;
+    document.getElementById('hdl').value = 1.2;
+    document.getElementById('tg').value = 1.8;
+    document.getElementById('hba1c').value = 7.5;
+    document.getElementById('dm_age').value = 52;
+    document.getElementById('cb_dm').checked = true;
+    var smokingDm = document.getElementById('smoking');
+    if (smokingDm) smokingDm.value = 'no';
+    toggleGroup('lipids');
+  } else if (scenario === 'lipids_mi') {
+    // После инфаркта → очень высокий риск, SCORE2 не применяется
+    document.getElementById('age').value = 58;
+    document.getElementById('sex').value = 'm';
+    document.getElementById('height').value = 178;
+    document.getElementById('weight').value = 82;
+    document.getElementById('sbp').value = 125;
+    document.getElementById('creatinine').value = 92;
+    document.getElementById('tchol').value = 4.8;
+    document.getElementById('hdl').value = 1.1;
+    document.getElementById('tg').value = 1.6;
+    document.getElementById('cb_mi').checked = true;
+    var smokingMi = document.getElementById('smoking');
+    if (smokingMi) smokingMi.value = 'no';
+    toggleGroup('lipids');
+  } else if (scenario === 'lipids_op') {
+    // Пожилая 75 лет → SCORE2-OP
+    document.getElementById('age').value = 75;
+    document.getElementById('sex').value = 'f';
+    document.getElementById('height').value = 162;
+    document.getElementById('weight').value = 68;
+    document.getElementById('sbp').value = 145;
+    document.getElementById('creatinine').value = 100;
+    document.getElementById('tchol').value = 6.2;
+    document.getElementById('hdl').value = 1.4;
+    document.getElementById('tg').value = 1.3;
+    var smokingOp = document.getElementById('smoking');
+    if (smokingOp) smokingOp.value = 'no';
+    toggleGroup('lipids');
+  } else if (scenario === 'lipids_young') {
+    // Молодая диабетик 42 года, СД 5 лет без ФР → SCORE2-Diabetes, умеренный риск
+    document.getElementById('age').value = 42;
+    document.getElementById('sex').value = 'f';
+    document.getElementById('height').value = 165;
+    document.getElementById('weight').value = 60;
+    document.getElementById('sbp').value = 120;
+    document.getElementById('creatinine').value = 80;
+    document.getElementById('tchol').value = 5.2;
+    document.getElementById('hdl').value = 1.5;
+    document.getElementById('tg').value = 1.0;
+    document.getElementById('hba1c').value = 6.8;
+    document.getElementById('dm_age').value = 37;
+    document.getElementById('cb_dm').checked = true;
+    var smokingYoung = document.getElementById('smoking');
+    if (smokingYoung) smokingYoung.value = 'no';
     toggleGroup('lipids');
   }
 

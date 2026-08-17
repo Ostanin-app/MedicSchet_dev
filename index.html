@@ -30,7 +30,11 @@
         <div class="demo-item" data-demo="acs">ОКС</div>
         <div class="demo-item" data-demo="afib">ФП</div>
         <div class="demo-item" data-demo="pe">ТЭЛА</div>
-        <div class="demo-item" data-demo="lipids">Липиды</div>
+        <div class="demo-item" data-demo="lipids">Липиды: базовый SCORE2</div>
+        <div class="demo-item" data-demo="lipids_dm">Липиды: СД 2 типа</div>
+        <div class="demo-item" data-demo="lipids_mi">Липиды: после инфаркта</div>
+        <div class="demo-item" data-demo="lipids_op">Липиды: 75 лет</div>
+        <div class="demo-item" data-demo="lipids_young">Липиды: молодой диабетик</div>
       </div>
     </div>
   </div>
@@ -320,6 +324,46 @@
           <div>
             <div class="cb-label">Поражение органов-мишеней при СД</div>
             <div class="cb-hint">Микроальбуминурия/протеинурия, ретинопатия, нейропатия и др.</div>
+          </div>
+        </label>
+
+        <label class="cb-item field-fh-cvd">
+          <input type="checkbox" id="cb_fh_cvd">
+          <div>
+            <div class="cb-label">Семейный анамнез ССЗ</div>
+            <div class="cb-hint">Ранние ССЗ у родственников первой линии: мужчины &lt; 55 лет, женщины &lt; 60 лет</div>
+          </div>
+        </label>
+
+        <label class="cb-item field-fh-lip">
+          <input type="checkbox" id="cb_fh_lip">
+          <div>
+            <div class="cb-label">Семейная гиперлипидемия</div>
+            <div class="cb-hint">IIa, IIb или III тип по данным семейного анамнеза</div>
+          </div>
+        </label>
+
+        <label class="cb-item field-asb50">
+          <input type="checkbox" id="cb_asb50">
+          <div>
+            <div class="cb-label">АСБ со стенозом &gt; 50%</div>
+            <div class="cb-hint">Атеросклеротическое ССЗ по данным обследования (дуплексное сканирование, КТ)</div>
+          </div>
+        </label>
+
+        <label class="cb-item field-ath25">
+          <input type="checkbox" id="cb_ath25">
+          <div>
+            <div class="cb-label">Атеросклероз некоронарных артерий (25–49%)</div>
+            <div class="cb-hint">Гемодинамически незначимый атеросклероз (стеноз 25–49%)</div>
+          </div>
+        </label>
+
+        <label class="cb-item field-gosghs">
+          <input type="checkbox" id="cb_gosghs">
+          <div>
+            <div class="cb-label">Гомозиготная СГХС (гоСГХС)</div>
+            <div class="cb-hint">Экстремальный риск: цель ХС ЛНП &lt; 1,0 ммоль/л</div>
           </div>
         </label>
 
