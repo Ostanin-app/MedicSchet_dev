@@ -159,3 +159,64 @@ function calcLipids(tc, hdl, tg, labLdl) {
   out.martinHopkins = martinHopkinsLdl(tc, hdl, tg);
   return out;
 }
+
+// ============================================================================
+// Выбор рабочего ЛПНП для расчёта цели и процента снижения.
+// Приоритет (согласно гайдлайнам ACC/AHA 2018, ESC 2019/2021):
+//   1. Лабораторный ЛПНП (прямое измерение) — всегда приоритет
+//   2. Если лабораторного нет — выбор формулы по уровню ТГ:
+//      - ТГ ≤ 2,0 ммоль/л → Фридвальд (достаточно точен)
+//      - ТГ 2,0–4,5 ммоль/л → Мартин-Хопкинс (точнее Фридвальда)
+//      - ТГ 4,5–9,0 ммоль/л → Сампсон (создан для высоких ТГ)
+//      - ТГ > 9,0 ммоль/л → формулы ненадёжны, нужно прямое измерение
+// Возвращает: { value, source, sourceLabel, warning }
+// ============================================================================
+function selectWorkingLdl(labLdl, lip, tg) {
+  // Приоритет 1: лабораторный ЛПНП
+  if (labLdl !== null && isFinite(labLdl) && labLdl > 0) {
+    return { value: labLdl, source: 'lab', sourceLabel: 'лаборатория', warning: null };
+  }
+
+  // Если ТГ не введены — пробуем любую доступную формулу
+  if (tg === null || !isFinite(tg)) {
+    if (lip) {
+      if (lip.friedewald !== null) return { value: lip.friedewald, source: 'friedewald', sourceLabel: 'Фридвальд', warning: null };
+      if (lip.martinHopkins !== null) return { value: lip.martinHopkins, source: 'martinHopkins', sourceLabel: 'Мартин-Хопкинс', warning: null };
+      if (lip.sampson !== null) return { value: lip.sampson, source: 'sampson', sourceLabel: 'Сампсон', warning: null };
+    }
+    return { value: null, source: 'none', sourceLabel: null, warning: 'Недостаточно данных для расчёта ЛПНП' };
+  }
+
+  // Приоритет 2: выбор формулы по уровню ТГ
+  if (tg <= 2.0) {
+    // Фридвальд — точен при низких ТГ
+    if (lip && lip.friedewald !== null) {
+      return { value: lip.friedewald, source: 'friedewald', sourceLabel: 'Фридвальд', warning: null };
+    }
+  } else if (tg <= 4.5) {
+    // Мартин-Хопкинс — точнее при умеренно повышенных ТГ
+    if (lip && lip.martinHopkins !== null) {
+      return { value: lip.martinHopkins, source: 'martinHopkins', sourceLabel: 'Мартин-Хопкинс', warning: null };
+    }
+  } else {
+    // ТГ > 4,5 — Сампсон (валидирован до ТГ ≤ 9 ммоль/л)
+    if (lip && lip.sampson !== null) {
+      var sampsonWarning = null;
+      if (tg > 9.0) {
+        sampsonWarning = 'Формула Сампсона валидирована для ТГ ≤ 9 ммоль/л (800 мг/дл). ' +
+          'При более высоких значениях точность снижается. Рекомендуется прямое измерение ЛПНП ' +
+          'или использование не-ЛПВП как альтернативной цели.';
+      }
+      return { value: lip.sampson, source: 'sampson', sourceLabel: 'Сампсон', warning: sampsonWarning };
+    }
+  }
+
+  // Запасной вариант — любая доступная формула
+  if (lip) {
+    if (lip.martinHopkins !== null) return { value: lip.martinHopkins, source: 'martinHopkins', sourceLabel: 'Мартин-Хопкинс', warning: null };
+    if (lip.sampson !== null) return { value: lip.sampson, source: 'sampson', sourceLabel: 'Сампсон', warning: null };
+    if (lip.friedewald !== null) return { value: lip.friedewald, source: 'friedewald', sourceLabel: 'Фридвальд', warning: null };
+  }
+
+  return { value: null, source: 'none', sourceLabel: null, warning: 'Недостаточно данных для расчёта ЛПНП' };
+}

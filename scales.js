@@ -1577,18 +1577,20 @@ function buildScore2Result(v) {
       }
       cat = tcat;
       var s2TipId = 's2tip_' + Date.now();
-      var s2TipText = SCORE2_TIP_TEXTS[modelLabel === 'SCORE2-Diabetes' ? 'diab' : modelLabel === 'SCORE2-OP' ? 'op' : 'score2'];
+      var s2TipText = SCORE2_TIP_TEXTS[modelLabel === 'SCORE2-Diabetes' ? 'diab' : modelLabel === 'SCORE2-OP' ? 'op' : 'score2'] +
+        '\n\nВыбранный регион для SCORE2 — регион очень высокого риска.';
       html += makeResultCard('Сердечно-сосудистый риск (' + modelLabel + ')' +
           '<span class="info-icon" id="' + s2TipId + '" style="cursor:help;font-size:15px;opacity:0.6;vertical-align:middle;margin-left:6px;">ⓘ</span>',
         riskPct.toFixed(1).replace('.', ',') + ' %',
         '10-летний риск СС-событий · ' + SCORE2_CAT_LABELS[cat],
         (cat === 'veryhigh' || cat === 'high') ? 'high' : (cat === 'moderate' ? 'moderate' : 'low'),
-        '', 'Регион: очень высокий риск (Россия). ' + SCORE2_CAT_LABELS[cat] + '.');
+        '', '');
       setTimeout(function() {
         var tipIcon = document.getElementById(s2TipId);
         if (tipIcon) setupTooltipTrigger(tipIcon, s2TipText);
       }, 50);
-      copy = modelLabel + ': риск ' + riskPct.toFixed(1).replace('.', ',') + '% — ' + SCORE2_CAT_LABELS[cat].toLowerCase();
+      var catCopyLabel = SCORE2_CAT_LABELS[cat].toLowerCase().replace(' риск', '');
+      copy = modelLabel + ': риск ' + riskPct.toFixed(1).replace('.', ',') + '% (' + catCopyLabel + ')';
     }
   } else {
     html += makeResultCard('Сердечно-сосудистый риск', '—',
@@ -1612,39 +1614,67 @@ function buildScore2Result(v) {
   var lipTipId = 'lip_tip_' + Date.now();
   // не-ЛПНП = ХС − ЛПВП — вычислим всегда, ТГ не нужны
   var lipNonHdl = (v.tchol && v.hdl && isFinite(v.tchol) && isFinite(v.hdl)) ? v.tchol - v.hdl : null;
-  var lipValue = (lipNonHdl !== null ? 'не-ЛПНП ' + lipNonHdl.toFixed(2).replace('.', ',') : '—') +
+  var lipValue = (lipNonHdl !== null ? 'не-ЛПВП ' + lipNonHdl.toFixed(2).replace('.', ',') : '—') +
     '<span class="info-icon" id="' + lipTipId + '" style="cursor:help;font-size:16px;opacity:0.6;vertical-align:middle;margin-left:6px;">ⓘ</span>';
   html += makeResultCard('Липиды',
     lipValue,
     lipParts.length ? '' : 'ТГ не введены', 'low', lipText, '');
   setTimeout(function() {
     var icon = document.getElementById(lipTipId);
-    if (icon) setupTooltipTrigger(icon, 'не-ЛПНП = ХС − ЛПВП (общий холестерин минус ЛПВП)');
+    if (icon) setupTooltipTrigger(icon, 'не-ЛПВП = ХС − ЛПВП (общий холестерин минус ЛПВП). Отражает суммарный атерогенный холестерин.');
   }, 50);
-  copy += (copy ? '; ' : '') + 'не-ЛПНП ' + (lipNonHdl !== null ? lipNonHdl.toFixed(2).replace('.', ',') : '—');
-  if (lip && lip.friedewald !== null) {
-    copy += '; ЛПНП (Фридвальд) ' + lip.friedewald.toFixed(2).replace('.', ',');
-  }
-  if (v.ldl !== null) {
-    copy += '; ЛПНП (лаборатория) ' + v.ldl.toFixed(2).replace('.', ',');
-  }
+  copy += (copy ? '; ' : '') + 'не-ЛПВП ' + (lipNonHdl !== null ? lipNonHdl.toFixed(2).replace('.', ',') : '—');
 
   // Цель терапии и рекомендации (только если категория определена)
   if (cat !== null) {
     var target = SCORE2_LDL_TARGETS[cat];
-    var curLdl = null;
-    if (lip && lip.friedewald !== null) curLdl = lip.friedewald;
-    else if (v.ldl !== null) curLdl = v.ldl;
+    
+    // Выбор рабочего ЛПНП по приоритету (лаборатория → формула по уровню ТГ)
+    var workingLdl = selectWorkingLdl(v.ldl, lip, v.tg);
+    var curLdl = workingLdl.value;
+    var ldlSourceLabel = workingLdl.sourceLabel;
+    var ldlWarning = workingLdl.warning;
+    
     var pct = null;
     if (curLdl !== null && curLdl > target) {
       pct = Math.round((curLdl - target) / curLdl * 100);
     }
+    
+    // Формируем заголовок цели в зависимости от категории риска
+    var targetHeadline = '';
+    if (cat === 'veryhigh' || cat === 'high') {
+      targetHeadline = 'Целевой уровень ХС ЛНП < ' + fmtLdl(target) + ' ммоль/л и снижение ≥50% от исходного.';
+    } else {
+      targetHeadline = 'Целевой уровень ХС ЛНП < ' + fmtLdl(target) + ' ммоль/л.';
+    }
+    
     // Объединённый блок «Цель терапии и варианты» (широкий, 2 колонки)
     var therapyDetails = '<div class="therapy-grid">';
-    therapyDetails += '<div><div class="therapy-col-title">Цель</div>' +
-      'ХС ЛНП < ' + fmtLdl(target) + ' ммоль/л' +
-      (pct !== null ? '<br>Снижение на ' + pct + '%' : '') +
-      '<br><br>' + SCORE2_RECOMMENDATIONS[cat] + '</div>';
+    
+    // Левая колонка: целевой уровень
+    therapyDetails += '<div><strong>' + targetHeadline + '</strong>';
+    
+    // Показываем исходный ЛПНП и его источник
+    if (curLdl !== null) {
+      if (pct !== null) {
+        therapyDetails += '<br><br>Исходный ЛПНП ' + fmtLdl(curLdl) + ' ммоль/л (' + ldlSourceLabel + ') — требуется снижение на ' + pct + '% для достижения < ' + fmtLdl(target) + ' ммоль/л.';
+      } else {
+        therapyDetails += '<br><br>Исходный ЛПНП ' + fmtLdl(curLdl) + ' ммоль/л (' + ldlSourceLabel + ') — целевой уровень достигнут.';
+      }
+      // Дополнительное предупреждение при сниженной точности (например, ТГ > 9)
+      if (ldlWarning !== null) {
+        therapyDetails += '<div style="margin-top:8px;padding:8px 10px;background:var(--orange-soft);border-left:3px solid var(--orange);border-radius:0 6px 6px 0;font-size:12px;line-height:1.5;">' +
+          '⚠️ ' + ldlWarning + '</div>';
+      }
+    } else if (ldlWarning !== null) {
+      // Нет расчёта вообще — только предупреждение
+      therapyDetails += '<div style="margin-top:8px;padding:8px 10px;background:var(--orange-soft);border-left:3px solid var(--orange);border-radius:0 6px 6px 0;font-size:12px;line-height:1.5;">' +
+        '⚠️ ' + ldlWarning + '</div>';
+    }
+    
+    therapyDetails += '</div>';
+    
+    // Правая колонка: Варианты терапии
     therapyDetails += '<div><div class="therapy-col-title">Варианты терапии</div>';
     if (pct !== null) {
       var opts = score2TherapyOptions(pct);
@@ -1658,9 +1688,10 @@ function buildScore2Result(v) {
     } else if (curLdl === null) {
       therapyDetails += 'Введите триглицериды или лабораторный ЛПНП, чтобы рассчитать необходимое снижение.';
     } else {
-      therapyDetails += 'Цель уже достигнута — ЛПНП на целевом уровне.';
+      therapyDetails += '<span style="color:var(--green);">Цель уже достигнута — ЛПНП на целевом уровне. Продолжайте текущую терапию.</span>';
     }
     therapyDetails += '</div></div>';
+    
     var thTipId = 'thtip_' + Date.now();
     html += makeResultCard('Цель терапии и варианты' +
         '<span class="info-icon" id="' + thTipId + '" style="cursor:help;font-size:15px;opacity:0.6;vertical-align:middle;margin-left:6px;">ⓘ</span>',
@@ -1673,8 +1704,26 @@ function buildScore2Result(v) {
       var thIcon = document.getElementById(thTipId);
       if (thIcon) setupTooltipTrigger(thIcon, 'Расчётное снижение по таблице А3.5 КР «Нарушения липидного обмена» (проект, 09.04.2026). Выбор терапии — на усмотрение врача.');
     }, 50);
-    copy += (copy ? '. ' : '') + 'Цель ХС ЛНП < ' + fmtLdl(target) + ' ммоль/л';
-    if (pct !== null) copy += '; снизить ХС ЛНП на ' + pct + '%';
+    var copyTargetHeadline = '';
+    if (cat === 'veryhigh' || cat === 'high') {
+      copyTargetHeadline = 'целевой уровень ХС ЛНП < ' + fmtLdl(target) + ' ммоль/л и снижение ≥50% от исходного';
+    } else {
+      copyTargetHeadline = 'целевой уровень ХС ЛНП < ' + fmtLdl(target) + ' ммоль/л';
+    }
+
+    copy += (copy ? '; ' : '') + copyTargetHeadline;
+
+    if (curLdl !== null) {
+      if (pct !== null) {
+        copy += '; исходный ЛПНП ' + fmtLdl(curLdl) + ' ммоль/л (' + ldlSourceLabel + ') — требуется снижение на ' + pct + '% для достижения < ' + fmtLdl(target) + ' ммоль/л.';
+      } else {
+        copy += '; исходный ЛПНП ' + fmtLdl(curLdl) + ' ммоль/л (' + ldlSourceLabel + ') — целевой уровень достигнут.';
+      }
+    } else if (ldlWarning !== null) {
+      copy += '; ' + ldlWarning;
+    } else {
+      copy += '.';
+    }
   }
 
   return { html: html, copy: copy };
