@@ -8,7 +8,7 @@
 //   - Фридвальд (1972):      LDL = TC − HDL − TG/2,2  (ммоль/л), применим при TG ≤ 4,5
 //   - Сампсон (NIH 2020):    см. sampsonLdl() — коэффициенты из JAMA Cardiol 2020
 //   - Мартин-Хопкинс (2013): см. martinHopkinsLdl() — таблица adjustable factor
-//   - не-ЛПНП = TC − HDL
+//   - не-ЛПВП = TC − HDL
 // ============================================================================
 
 var MGDL_TC = 38.67;    // ммоль/л → мг/дл (холестерин, ЛПНП, ЛПВП, не-ЛПВП)
@@ -20,7 +20,9 @@ function tgMmolToMgdl(x) { return x * MGDL_TG; }
 
 // Фридвальд: LDL (ммоль/л) = TC − HDL − TG/2,2. Применим при TG ≤ 4,5 ммоль/л.
 function friedewaldLdl(tc, hdl, tg) {
+  if (tc === null || hdl === null || tg === null) return null;
   if (!isFinite(tc) || !isFinite(hdl) || !isFinite(tg)) return null;
+  if (tc <= 0 || hdl <= 0 || tg < 0) return null;
   return tc - hdl - tg / 2.2;
 }
 
@@ -30,10 +32,14 @@ function friedewaldLdl(tc, hdl, tg) {
 // Equation 2 («LDL-C = TC/0.948 − HDL-C/0.971 − (TG/8.56 + TG×Non-HDL-C/2140 − TG²/16100) − 9.44»).
 // Применим до TG ≤ 800 мг/дл.
 function sampsonLdl(tc, hdl, tg) {
+  if (tc === null || hdl === null || tg === null) return null;
+  if (!isFinite(tc) || !isFinite(hdl) || !isFinite(tg)) return null;
+  if (tc <= 0 || hdl <= 0 || tg < 0) return null;
   var tcMg = mmolToMgdl(tc);
   var hdlMg = mmolToMgdl(hdl);
   var tgMg = tgMmolToMgdl(tg);
-  if (tgMg > 800) return null; // применим до ТГ ≤ 800 мг/дл
+  // При ТГ > 800 мг/дл (≈ 9 ммоль/л) формула даёт лишь ориентир:
+  // предупреждение об этом показывает selectWorkingLdl (критерий ЛПНП ≥ 4,9 при ТГ > 9 не срабатывает)
   var nonHdlMg = tcMg - hdlMg;
   var ldlMg = tcMg / 0.948 - hdlMg / 0.971
             - (tgMg / 8.56 + (tgMg * nonHdlMg) / 2140 - tgMg * tgMg / 16100)
@@ -117,6 +123,9 @@ var MARTIN_HOPKINS_FACTORS = [
 ];
 
 function martinHopkinsLdl(tc, hdl, tg) {
+  if (tc === null || hdl === null || tg === null) return null;
+  if (!isFinite(tc) || !isFinite(hdl) || !isFinite(tg)) return null;
+  if (tc <= 0 || hdl <= 0 || tg < 0) return null;
   if (!MARTIN_HOPKINS_FACTORS) return null;
   var nonHdlMg = mmolToMgdl(tc) - mmolToMgdl(hdl);
   var tgMg = tgMmolToMgdl(tg);
@@ -141,9 +150,11 @@ function martinHopkinsFactor(nonHdlMg, tgMg) {
   return MARTIN_HOPKINS_FACTORS[row][col];
 }
 
-// не-ЛПНП (ммоль/л) = TC − HDL
+// не-ЛПВП (ммоль/л) = TC − HDL
 function nonHdl(tc, hdl) {
+  if (tc === null || hdl === null) return null;
   if (!isFinite(tc) || !isFinite(hdl)) return null;
+  if (tc <= 0 || hdl <= 0) return null;
   return tc - hdl;
 }
 
@@ -203,19 +214,12 @@ function selectWorkingLdl(labLdl, lip, tg) {
     if (lip && lip.sampson !== null) {
       var sampsonWarning = null;
       if (tg > 9.0) {
-        sampsonWarning = 'Формула Сампсона валидирована для ТГ ≤ 9 ммоль/л (800 мг/дл). ' +
-          'При более высоких значениях точность снижается. Рекомендуется прямое измерение ЛПНП ' +
-          'или использование не-ЛПВП как альтернативной цели.';
+        sampsonWarning = 'Формула Сампсона валидирована при ТГ ≤ 9,0 ммоль/л (≈800 мг/дл). ' +
+          'При более высоких значениях она используется только ориентировочно; для критерия ЛПНП ≥ 4,9 ммоль/л ' +
+          'такой расчёт вне валидированного диапазона. Желательно прямое измерение ЛПНП; ориентируйтесь также на не-ЛПВП.';
       }
       return { value: lip.sampson, source: 'sampson', sourceLabel: 'Сампсон', warning: sampsonWarning };
     }
-  }
-
-  // Запасной вариант — любая доступная формула
-  if (lip) {
-    if (lip.martinHopkins !== null) return { value: lip.martinHopkins, source: 'martinHopkins', sourceLabel: 'Мартин-Хопкинс', warning: null };
-    if (lip.sampson !== null) return { value: lip.sampson, source: 'sampson', sourceLabel: 'Сампсон', warning: null };
-    if (lip.friedewald !== null) return { value: lip.friedewald, source: 'friedewald', sourceLabel: 'Фридвальд', warning: null };
   }
 
   return { value: null, source: 'none', sourceLabel: null, warning: 'Недостаточно данных для расчёта ЛПНП' };

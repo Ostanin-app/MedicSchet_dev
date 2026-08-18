@@ -1501,15 +1501,31 @@ function buildScore2Result(v) {
     fhLip: v.fhLip, asb50: v.asb50, ath25: v.ath25, gosghs: v.gosghs,
     dur: score2DurYears(v.age, v.dmAge, v.dm20)
   };
-  // Критерий «ЛПНП > 4,9 → высокий риск»: лабораторный ЛПНП, а если его нет —
-  // расчётный по Фридвальду (применим при ТГ ≤ 4,5 ммоль/л)
-  if (ctx.ldl === null && v.tg !== null && isFinite(v.tg) && v.tg <= 4.5) {
-    var fwLdl = friedewaldLdl(v.tchol, v.hdl, v.tg);
-    if (fwLdl !== null && fwLdl > 0) ctx.ldl = fwLdl;
+  // Липидные формулы и рабочий ЛПНП считаем сразу, чтобы и стратификация риска,
+  // и терапевтический блок опирались на один и тот же источник.
+  var lip = calcLipids(v.tchol, v.hdl, v.tg, v.ldl);
+  var workingLdl = selectWorkingLdl(v.ldl, lip, v.tg);
+
+  // Для клинического критерия «ЛПНП ≥ 4,9 → минимум высокий риск»
+  // используем лабораторный ЛПНП всегда; расчётный — только если он получен
+  // валидным методом в допустимом диапазоне ТГ. Сампсон при ТГ > 9,0
+  // оставляем как ориентир для терапии, но не для авто-повышения риска.
+  var ldlForHighRiskCriterion = null;
+  if (v.ldl !== null && isFinite(v.ldl) && v.ldl > 0) {
+    ldlForHighRiskCriterion = v.ldl;
+  } else if (workingLdl.value !== null) {
+    var canUseWorkingLdlForHighRiskCriterion =
+      workingLdl.source === 'friedewald' ||
+      workingLdl.source === 'martinHopkins' ||
+      (workingLdl.source === 'sampson' && v.tg !== null && isFinite(v.tg) && v.tg <= 9.0);
+
+    if (canUseWorkingLdlForHighRiskCriterion) {
+      ldlForHighRiskCriterion = workingLdl.value;
+    }
   }
 
   // Клинические «высокие» критерии: не блокируют модель SCORE2 — категория по максимуму
-  var floorHigh = ctx.tchol > 8 || (ctx.ldl !== null && ctx.ldl >= 4.9) || ctx.sbp >= 180 ||
+  var floorHigh = ctx.tchol > 8 || (ldlForHighRiskCriterion !== null && ldlForHighRiskCriterion >= 4.9) || ctx.sbp >= 180 ||
                   (ctx.egfr !== null && ctx.egfr >= 30 && ctx.egfr < 60) || ctx.ath25;
   var cat = score2ClinicalCat(ctx);
   var modelLabel = null;
@@ -1602,11 +1618,9 @@ function buildScore2Result(v) {
     copy = 'Категория риска: ' + catClinLabel + ' (клинически)';
   }
 
-  // Липидные формулы (ЛПНП) — карточка выводится всегда (не-ЛПНП доступен и без ТГ)
-  var lip = null;
+  // Липидные формулы (ЛПНП) — карточка выводится всегда (не-ЛПВП доступен и без ТГ)
   var lipParts = [];
-  if (v.tg !== null && isFinite(v.tg)) {
-    lip = calcLipids(v.tchol, v.hdl, v.tg, v.ldl);
+  if (v.tg !== null && isFinite(v.tg) && lip) {
     if (lip.friedewald !== null) lipParts.push('Фридвальд ' + lip.friedewald.toFixed(2).replace('.', ','));
     if (lip.sampson !== null) lipParts.push('Сампсон ' + lip.sampson.toFixed(2).replace('.', ','));
     if (lip.martinHopkins !== null) lipParts.push('Мартин-Хопкинс ' + lip.martinHopkins.toFixed(2).replace('.', ','));
@@ -1615,7 +1629,7 @@ function buildScore2Result(v) {
   var lipText = 'ЛПНП: ' + (lipParts.length ? lipParts.join(' · ') : 'введите триглицериды для расчёта ЛПНП по формулам');
   if (lip && lip.tgTooHighFriedewald) lipText += ' · Фридвальд неприменим при ТГ > 4,5 ммоль/л';
   var lipTipId = 'lip_tip_' + Date.now();
-  // не-ЛПНП = ХС − ЛПВП — вычислим всегда, ТГ не нужны
+  // не-ЛПВП = ХС − ЛПВП — вычислим всегда, ТГ не нужны
   var lipNonHdl = (v.tchol && v.hdl && isFinite(v.tchol) && isFinite(v.hdl)) ? v.tchol - v.hdl : null;
   var lipValue = (lipNonHdl !== null ? 'не-ЛПВП ' + lipNonHdl.toFixed(2).replace('.', ',') : '—') +
     '<span class="info-icon" id="' + lipTipId + '" style="cursor:help;font-size:16px;opacity:0.6;vertical-align:middle;margin-left:6px;">ⓘ</span>';
@@ -1631,9 +1645,6 @@ function buildScore2Result(v) {
   // Цель терапии и рекомендации (только если категория определена)
   if (cat !== null) {
     var target = SCORE2_LDL_TARGETS[cat];
-    
-    // Выбор рабочего ЛПНП по приоритету (лаборатория → формула по уровню ТГ)
-    var workingLdl = selectWorkingLdl(v.ldl, lip, v.tg);
     var curLdl = workingLdl.value;
     var ldlSourceLabel = workingLdl.sourceLabel;
     var ldlWarning = workingLdl.warning;
@@ -1698,9 +1709,8 @@ function buildScore2Result(v) {
     var thTipId = 'thtip_' + Date.now();
     html += makeResultCard('Цель терапии и варианты' +
         '<span class="info-icon" id="' + thTipId + '" style="cursor:help;font-size:15px;opacity:0.6;vertical-align:middle;margin-left:6px;">ⓘ</span>',
-      'ХС ЛНП < ' + fmtLdl(target) + ' ммоль/л',
       SCORE2_CAT_LABELS[cat],
-      SCORE2_CAT_LABELS[cat],
+      '',
       (cat === 'extreme' || cat === 'veryhigh' || cat === 'high') ? 'high' : (cat === 'moderate' ? 'moderate' : 'low'),
       therapyDetails, '',
       'card-span-2');
