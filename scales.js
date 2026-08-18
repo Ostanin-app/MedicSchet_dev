@@ -1618,15 +1618,21 @@ function buildScore2Result(v) {
     copy = 'Категория риска: ' + catClinLabel + ' (клинически)';
   }
 
-  // Липидные формулы (ЛПНП) — карточка выводится всегда (не-ЛПВП доступен и без ТГ)
+  // Липидные формулы (ЛПНП) — карточка выводится всегда (не-ЛПВП доступен и без ТГ).
+  // ВАЖНО: lip и workingLdl уже посчитаны в начале функции — пересчитывать их здесь
+  // нельзя: карточка, критерий ЛПНП ≥ 4,9 и блок терапии должны видеть один и тот же источник.
+  // Символ ★ ставится перед источником ЛПНП, который реально взят для расчёта цели терапии.
   var lipParts = [];
   if (v.tg !== null && isFinite(v.tg) && lip) {
-    if (lip.friedewald !== null) lipParts.push('Фридвальд ' + lip.friedewald.toFixed(2).replace('.', ','));
-    if (lip.sampson !== null) lipParts.push('Сампсон ' + lip.sampson.toFixed(2).replace('.', ','));
-    if (lip.martinHopkins !== null) lipParts.push('Мартин-Хопкинс ' + lip.martinHopkins.toFixed(2).replace('.', ','));
-    if (v.ldl !== null) lipParts.push('лаборатория ' + v.ldl.toFixed(2).replace('.', ','));
+    if (lip.friedewald !== null) lipParts.push((workingLdl.source === 'friedewald' ? '★ ' : '') + 'Фридвальд ' + lip.friedewald.toFixed(2).replace('.', ','));
+    if (lip.sampson !== null) lipParts.push((workingLdl.source === 'sampson' ? '★ ' : '') + 'Сампсон ' + lip.sampson.toFixed(2).replace('.', ','));
+    if (lip.martinHopkins !== null) lipParts.push((workingLdl.source === 'martinHopkins' ? '★ ' : '') + 'Мартин-Хопкинс ' + lip.martinHopkins.toFixed(2).replace('.', ','));
   }
-  var lipText = 'ЛПНП: ' + (lipParts.length ? lipParts.join(' · ') : 'введите триглицериды для расчёта ЛПНП по формулам');
+  // Лабораторный ЛПНП показываем ВСЕГДА, если введён — независимо от наличия ТГ
+  if (v.ldl !== null && isFinite(v.ldl) && v.ldl > 0) {
+    lipParts.push((workingLdl.source === 'lab' ? '★ ' : '') + 'лаборатория ' + v.ldl.toFixed(2).replace('.', ','));
+  }
+  var lipText = 'ЛПНП: ' + (lipParts.length ? lipParts.join(' · ') : 'введите триглицериды или лабораторный ЛПНП');
   if (lip && lip.tgTooHighFriedewald) lipText += ' · Фридвальд неприменим при ТГ > 4,5 ммоль/л';
   var lipTipId = 'lip_tip_' + Date.now();
   // не-ЛПВП = ХС − ЛПВП — вычислим всегда, ТГ не нужны
@@ -1638,7 +1644,9 @@ function buildScore2Result(v) {
     lipParts.length ? '' : 'ТГ не введены', 'low', lipText, '');
   setTimeout(function() {
     var icon = document.getElementById(lipTipId);
-    if (icon) setupTooltipTrigger(icon, 'не-ЛПВП = ХС − ЛПВП (общий холестерин минус ЛПВП). Отражает суммарный атерогенный холестерин.');
+    if (icon) setupTooltipTrigger(icon,
+      'не-ЛПВП = ХС − ЛПВП (общий холестерин минус ЛПВП). Отражает суммарный атерогенный холестерин.\n\n' +
+      '★ — источник ЛПНП, использованный для расчёта цели терапии и процента снижения.');
   }, 50);
   copy += (copy ? '; ' : '') + 'не-ЛПВП ' + (lipNonHdl !== null ? lipNonHdl.toFixed(2).replace('.', ',') : '—');
 
@@ -1653,7 +1661,20 @@ function buildScore2Result(v) {
     if (curLdl !== null && curLdl > target) {
       pct = Math.round((curLdl - target) / curLdl * 100);
     }
-    
+
+    // Дополнительная цель при высоких ТГ: не-ЛПВП = целевой ЛПНП + 0,8 ммоль/л.
+    // Отдельную таблицу не заводим, чтобы не было второго источника истины.
+    var nonHdlTarget = Math.round((target + 0.8) * 10) / 10;
+    var showNonHdlTarget = (v.tg !== null && isFinite(v.tg) && v.tg > 4.5);
+    var nonHdlTargetText = '';
+    if (showNonHdlTarget) {
+      if (v.tg > 9.0) {
+        nonHdlTargetText = 'Дополнительный ориентир при очень высоких ТГ: целевой не-ЛПВП < ' + fmtLdl(nonHdlTarget) + ' ммоль/л.';
+      } else {
+        nonHdlTargetText = 'Дополнительный ориентир при высоких ТГ: целевой не-ЛПВП < ' + fmtLdl(nonHdlTarget) + ' ммоль/л.';
+      }
+    }
+
     // Формируем заголовок цели в зависимости от категории риска
     var targetHeadline = '';
     if (cat === 'veryhigh' || cat === 'high') {
@@ -1675,15 +1696,23 @@ function buildScore2Result(v) {
       } else {
         therapyDetails += '<br><br>Исходный ЛПНП ' + fmtLdl(curLdl) + ' ммоль/л (' + ldlSourceLabel + ') — целевой уровень достигнут.';
       }
+      if (nonHdlTargetText) {
+        therapyDetails += '<br><br><span style="font-size:12px;color:var(--text-2);">' + nonHdlTargetText + '</span>';
+      }
       // Дополнительное предупреждение при сниженной точности (например, ТГ > 9)
       if (ldlWarning !== null) {
         therapyDetails += '<div style="margin-top:8px;padding:8px 10px;background:var(--orange-soft);border-left:3px solid var(--orange);border-radius:0 6px 6px 0;font-size:12px;line-height:1.5;">' +
           '⚠️ ' + ldlWarning + '</div>';
       }
-    } else if (ldlWarning !== null) {
-      // Нет расчёта вообще — только предупреждение
-      therapyDetails += '<div style="margin-top:8px;padding:8px 10px;background:var(--orange-soft);border-left:3px solid var(--orange);border-radius:0 6px 6px 0;font-size:12px;line-height:1.5;">' +
-        '⚠️ ' + ldlWarning + '</div>';
+    } else {
+      if (nonHdlTargetText) {
+        therapyDetails += '<br><br><span style="font-size:12px;color:var(--text-2);">' + nonHdlTargetText + '</span>';
+      }
+      if (ldlWarning !== null) {
+        // Нет расчёта вообще — только предупреждение
+        therapyDetails += '<div style="margin-top:8px;padding:8px 10px;background:var(--orange-soft);border-left:3px solid var(--orange);border-radius:0 6px 6px 0;font-size:12px;line-height:1.5;">' +
+          '⚠️ ' + ldlWarning + '</div>';
+      }
     }
     
     therapyDetails += '</div>';
@@ -1726,6 +1755,9 @@ function buildScore2Result(v) {
     }
 
     copy += (copy ? '; ' : '') + copyTargetHeadline;
+    if (showNonHdlTarget) {
+      copy += '; целевой не-ЛПВП < ' + fmtLdl(nonHdlTarget) + ' ммоль/л';
+    }
 
     if (curLdl !== null) {
       if (pct !== null) {
