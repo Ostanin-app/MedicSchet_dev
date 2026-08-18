@@ -1535,7 +1535,8 @@ function buildScore2Result(v) {
           var dmRulesIcon = document.getElementById(dmRulesTipId);
           if (dmRulesIcon) setupTooltipTrigger(dmRulesIcon, SCORE2_TIP_TEXTS.dmRules);
         }, 50);
-        copy = 'Категория риска (правила СД): ' + SCORE2_CAT_LABELS[cat].toLowerCase() +
+        var catDmLabel = SCORE2_CAT_LABELS[cat].toLowerCase().replace(' риск', '');
+        copy = 'Категория риска (правила СД): ' + catDmLabel +
                '; SCORE2 неприменима (возраст ' + v.age + ' лет)';
       } else if (floorHigh) {
         // Возраст вне диапазона SCORE2, но есть клинический «высокий» критерий — категория клинически
@@ -1543,7 +1544,8 @@ function buildScore2Result(v) {
         html += makeResultCard('Категория риска (клинически)', SCORE2_CAT_LABELS[cat],
           'SCORE2 неприменима для возраста ' + v.age + ' лет; категория по клиническим критериям (рос. КР 2023).',
           'high', '', '');
-        copy = 'Категория риска (клинически): ' + SCORE2_CAT_LABELS[cat].toLowerCase() +
+        var catFloorLabel = SCORE2_CAT_LABELS[cat].toLowerCase().replace(' риск', '');
+        copy = 'Категория риска (клинически): ' + catFloorLabel +
                '; SCORE2 неприменима (возраст ' + v.age + ' лет)';
       } else {
         html += makeResultCard('Сердечно-сосудистый риск (SCORE2)', '—',
@@ -1596,7 +1598,8 @@ function buildScore2Result(v) {
     html += makeResultCard('Сердечно-сосудистый риск', '—',
       'SCORE2 не применяется · ' + SCORE2_CAT_LABELS[cat],
       'high', '', 'Риск определён клинически (рос. КР 2023); расчёт SCORE2 не требуется.');
-    copy = 'Категория риска: ' + SCORE2_CAT_LABELS[cat].toLowerCase() + ' (клинически)';
+    var catClinLabel = SCORE2_CAT_LABELS[cat].toLowerCase().replace(' риск', '');
+    copy = 'Категория риска: ' + catClinLabel + ' (клинически)';
   }
 
   // Липидные формулы (ЛПНП) — карточка выводится всегда (не-ЛПНП доступен и без ТГ)
@@ -1688,7 +1691,7 @@ function buildScore2Result(v) {
     } else if (curLdl === null) {
       therapyDetails += 'Введите триглицериды или лабораторный ЛПНП, чтобы рассчитать необходимое снижение.';
     } else {
-      therapyDetails += '<span style="color:var(--green);">Цель уже достигнута — ЛПНП на целевом уровне. Продолжайте текущую терапию.</span>';
+      therapyDetails += '<span style="color:var(--green);">Целевой уровень достигнут. Продолжайте текущую терапию и контролируйте липидный профиль.</span>';
     }
     therapyDetails += '</div></div>';
     
@@ -1696,6 +1699,7 @@ function buildScore2Result(v) {
     html += makeResultCard('Цель терапии и варианты' +
         '<span class="info-icon" id="' + thTipId + '" style="cursor:help;font-size:15px;opacity:0.6;vertical-align:middle;margin-left:6px;">ⓘ</span>',
       'ХС ЛНП < ' + fmtLdl(target) + ' ммоль/л',
+      SCORE2_CAT_LABELS[cat],
       SCORE2_CAT_LABELS[cat],
       (cat === 'extreme' || cat === 'veryhigh' || cat === 'high') ? 'high' : (cat === 'moderate' ? 'moderate' : 'low'),
       therapyDetails, '',
