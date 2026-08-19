@@ -23,7 +23,9 @@ function friedewaldLdl(tc, hdl, tg) {
   if (tc === null || hdl === null || tg === null) return null;
   if (!isFinite(tc) || !isFinite(hdl) || !isFinite(tg)) return null;
   if (tc <= 0 || hdl <= 0 || tg < 0) return null;
-  return tc - hdl - tg / 2.2;
+  var ldl = tc - hdl - tg / 2.2;
+  if (ldl < 0) return null; // физически невозможное отрицательное значение
+  return ldl;
 }
 
 // Сампсон (NIH 2020): LDL (мг/дл) = TC/0.948 − HDL/0.971
@@ -44,6 +46,7 @@ function sampsonLdl(tc, hdl, tg) {
   var ldlMg = tcMg / 0.948 - hdlMg / 0.971
             - (tgMg / 8.56 + (tgMg * nonHdlMg) / 2140 - tgMg * tgMg / 16100)
             - 9.44;
+  if (ldlMg < 0) return null; // физически невозможное отрицательное значение
   return mgdlToMmol(ldlMg);
 }
 
@@ -132,6 +135,7 @@ function martinHopkinsLdl(tc, hdl, tg) {
   var f = martinHopkinsFactor(nonHdlMg, tgMg);
   if (f === null) return null;
   var ldlMg = nonHdlMg - tgMg / f;
+  if (ldlMg < 0) return null; // физически невозможное отрицательное значение
   return mgdlToMmol(ldlMg);
 }
 

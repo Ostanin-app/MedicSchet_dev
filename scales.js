@@ -1352,6 +1352,45 @@ function score2ClinicalCat(ctx) {
   return null;
 }
 
+// Причины реклассификации до «высокого риска» вне клинической ветки score2ClinicalCat.
+// Используется только для пояснения, почему итоговая категория оказалась выше расчётной по модели.
+function score2FloorHighCriteria(ctx, ldlForHighRiskCriterion) {
+  var causes = [];
+  if (ctx.tchol > 8) causes.push('Общий холестерин > 8 ммоль/л');
+  if (ldlForHighRiskCriterion !== null && ldlForHighRiskCriterion >= 4.9) causes.push('ЛПНП ≥ 4,9 ммоль/л');
+  if (ctx.sbp >= 180) causes.push('САД ≥ 180 мм рт.ст.');
+  if (ctx.egfr !== null && ctx.egfr >= 30 && ctx.egfr < 60) causes.push('Умеренная ХБП (рСКФ 30–59 мл/мин/1,73 м²)');
+  if (ctx.ath25) causes.push('Атеросклероз некоронарных артерий (стеноз 25–49%)');
+  return causes;
+}
+
+// ============================================================================
+// Клинические критерии, определившие категорию риска (для тултипа карточки
+// «Сердечно-сосудистый риск»). Должна оставаться синхронизированной
+// с score2ClinicalCat: те же условия и тот же порядок. Возвращает ВСЕ
+// сработавшие критерии (не только «победивший»).
+// ============================================================================
+function score2ClinicalCriteria(ctx) {
+  var causes = [];
+  var rf = score2RfCount(ctx);
+
+  if (ctx.events2) causes.push('2 сердечно-сосудистых события за 2 года на фоне оптимальной гиполипидемической терапии');
+  if (ctx.gosghs) causes.push('Гомозиготная семейная гиперхолестеринемия (гоСГХС)');
+  if (ctx.mi) causes.push('Инфаркт миокарда в анамнезе');
+  if (ctx.stroke) causes.push('Инсульт в анамнезе');
+  if (ctx.tia) causes.push('ТИА в анамнезе');
+  if (ctx.vasc) causes.push('Сосудистое заболевание в анамнезе');
+  if (ctx.asb50) causes.push('АСБ со стенозом > 50%');
+  if (ctx.sghs && ctx.dm) causes.push('СГХС в сочетании с сахарным диабетом');
+  if (ctx.sghs && rf >= 1) causes.push('СГХС в сочетании с дополнительными факторами риска');
+  if (ctx.sghs && !ctx.dm && rf < 1) causes.push('СГХС без дополнительных факторов риска');
+  if (ctx.egfr !== null && ctx.egfr < 30) causes.push('Тяжёлая ХБП (рСКФ < 30 мл/мин/1,73 м²)');
+  if (ctx.dm && ctx.tod) causes.push('СД с поражением органов-мишеней');
+  if (ctx.dm && (ctx.dm20 || (ctx.dur !== null && ctx.dur > 20))) causes.push('Длительность СД > 20 лет');
+
+  return causes;
+}
+
 // Категория по порогам SCORE2 (рос. КР 2023)
 function score2ThresholdCat(model, risk, age) {
   if (model === 'score2') {
@@ -1380,6 +1419,21 @@ function score2DmRuleCat(ctx) {
   // Высокий: СД с ФР (1–2)
   if (rf >= 1) return 'high';
   return 'moderate';
+}
+
+// Причины реклассификации по правилам СД в ветке, где SCORE2 всё ещё считается.
+// ПОМ и длительность >20 лет сюда не включаем: эти случаи уже отсекаются раньше
+// в score2ClinicalCat как клинически очень высокий риск, без расчёта модели.
+function score2DmReclassCriteria(ctx) {
+  var causes = [];
+  var rf = score2RfCount(ctx);
+  var dur = ctx.dur;
+
+  if (rf >= 3) causes.push('СД в сочетании с ≥3 факторами риска');
+  if (dur !== null && dur >= 10) causes.push('Длительность СД ≥ 10 лет');
+  if (rf >= 1 && rf < 3) causes.push('СД в сочетании с факторами риска');
+
+  return causes;
 }
 
 var SCORE2_CAT_ORDER = ['low', 'moderate', 'high', 'veryhigh', 'extreme'];
@@ -1585,35 +1639,96 @@ function buildScore2Result(v) {
       }
       riskPct = risk.risk;
       var tcat = score2ThresholdCat(modelLabel === 'SCORE2-Diabetes' ? 'diab' : modelLabel === 'SCORE2-OP' ? 'op' : 'score2', riskPct, v.age);
+      var modelCat = tcat;
+      var dmcat = null;
+
       // Категория по максимуму: пороги модели + правила СД (при диабете) + клинические «высокие» критерии
       if (v.dm) {
-        var dmcat = score2DmRuleCat(ctx);
+        dmcat = score2DmRuleCat(ctx);
         var minIdx = Math.max(SCORE2_CAT_ORDER.indexOf(dmcat), floorHigh ? SCORE2_CAT_ORDER.indexOf('high') : 0);
         tcat = SCORE2_CAT_ORDER[Math.max(SCORE2_CAT_ORDER.indexOf(tcat), minIdx)];
       } else if (floorHigh) {
         tcat = SCORE2_CAT_ORDER[Math.max(SCORE2_CAT_ORDER.indexOf(tcat), SCORE2_CAT_ORDER.indexOf('high'))];
       }
       cat = tcat;
+
+      // Если итоговая категория выше расчётной по модели, показываем врачу всю
+      // цепочку повышений: по шкале → с учётом правил СД → по клиническим критериям.
+      var wasReclassified = (SCORE2_CAT_ORDER.indexOf(cat) > SCORE2_CAT_ORDER.indexOf(modelCat));
+      var reclassDetails = '';
+      var copyReclassNote = '';
+      if (wasReclassified) {
+        var lines = [];
+        lines.push('По шкале ' + modelLabel + ': ' + riskPct.toFixed(1).replace('.', ',') + '% — ' + SCORE2_CAT_LABELS[modelCat].toLowerCase() + '.');
+        var preCat = modelCat;
+        if (v.dm && dmcat !== null && SCORE2_CAT_ORDER.indexOf(dmcat) > SCORE2_CAT_ORDER.indexOf(preCat)) {
+          preCat = dmcat;
+          lines.push('С учётом клинических критериев при сахарном диабете (рос. КР 2023): ' + SCORE2_CAT_LABELS[dmcat].toLowerCase() + '.');
+          copyReclassNote += '; с учётом клинических критериев при СД' + (dmcat !== cat ? ': ' + SCORE2_CAT_LABELS[dmcat].toLowerCase().replace(' риск', '') : '');
+        }
+        if (SCORE2_CAT_ORDER.indexOf(cat) > SCORE2_CAT_ORDER.indexOf(preCat)) {
+          var floorReasons = [];
+          if (floorHigh && SCORE2_CAT_ORDER.indexOf('high') > SCORE2_CAT_ORDER.indexOf(preCat)) {
+            floorReasons = score2FloorHighCriteria(ctx, ldlForHighRiskCriterion);
+          }
+          if (floorReasons.length > 0) {
+            var catAcc = SCORE2_CAT_LABELS[cat].toLowerCase().replace(' риск', '')
+              .replace('высокий', 'высокого').replace('низкий', 'низкого')
+              .replace('умеренный', 'умеренного').replace('экстремальный', 'экстремального');
+            lines.push('Категория повышена до ' + catAcc + ' риска по клиническому критерию' + (floorReasons.length > 1 ? 'ям' : '') + ':');
+            lines.push('• ' + floorReasons.join('<br>• '));
+            copyReclassNote += '; категория повышена: ' + floorReasons.join(', ');
+          }
+        }
+        reclassDetails = lines.join('<br>');
+      }
+
       var s2TipId = 's2tip_' + Date.now();
       var s2TipText = SCORE2_TIP_TEXTS[modelLabel === 'SCORE2-Diabetes' ? 'diab' : modelLabel === 'SCORE2-OP' ? 'op' : 'score2'] +
         '\n\nВыбранный регион для SCORE2 — регион очень высокого риска.';
-      html += makeResultCard('Сердечно-сосудистый риск (' + modelLabel + ')' +
+      html += makeResultCard(modelLabel +
           '<span class="info-icon" id="' + s2TipId + '" style="cursor:help;font-size:15px;opacity:0.6;vertical-align:middle;margin-left:6px;">ⓘ</span>',
         riskPct.toFixed(1).replace('.', ',') + ' %',
         '10-летний риск СС-событий · ' + SCORE2_CAT_LABELS[cat],
         (cat === 'veryhigh' || cat === 'high') ? 'high' : (cat === 'moderate' ? 'moderate' : 'low'),
-        '', '');
+        reclassDetails, '');
       setTimeout(function() {
         var tipIcon = document.getElementById(s2TipId);
         if (tipIcon) setupTooltipTrigger(tipIcon, s2TipText);
       }, 50);
-      var catCopyLabel = SCORE2_CAT_LABELS[cat].toLowerCase().replace(' риск', '');
-      copy = modelLabel + ': риск ' + riskPct.toFixed(1).replace('.', ',') + '% (' + catCopyLabel + ')';
+      var catCopyLabel = SCORE2_CAT_LABELS[cat].toLowerCase();
+      copy = modelLabel + ': ' + riskPct.toFixed(1).replace('.', ',') + '% (' + catCopyLabel;
+      if (copyReclassNote) {
+        copy += copyReclassNote;
+      }
+      copy += ')';
     }
   } else {
-    html += makeResultCard('Сердечно-сосудистый риск', '—',
+    // Клинические критерии для тултипа: показываем все реально сработавшие
+    // основания из ветки score2ClinicalCat, а не только «победивший» критерий.
+    var clinicalCauses = score2ClinicalCriteria(ctx);
+    var clinTipId = 'clintip_' + Date.now();
+    var clinTipText;
+
+    if (clinicalCauses.length === 1) {
+      clinTipText = 'Критерий для определения риска:\n• ' + clinicalCauses[0];
+    } else if (clinicalCauses.length > 1) {
+      clinTipText = 'Критерии для определения риска:\n• ' + clinicalCauses.join('\n• ');
+    } else {
+      // Страховка: по нормальной логике сюда не должны попадать без причины
+      clinTipText = 'Риск определён клинически; детализация критерия недоступна.';
+    }
+
+    html += makeResultCard('Сердечно-сосудистый риск',
+      '— <span class="info-icon" id="' + clinTipId + '" style="cursor:help;font-size:15px;opacity:0.6;vertical-align:middle;margin-left:6px;">ⓘ</span>',
       'SCORE2 не применяется · ' + SCORE2_CAT_LABELS[cat],
       'high', '', 'Риск определён клинически (рос. КР 2023); расчёт SCORE2 не требуется.');
+
+    setTimeout(function() {
+      var icon = document.getElementById(clinTipId);
+      if (icon) setupTooltipTrigger(icon, clinTipText);
+    }, 50);
+
     var catClinLabel = SCORE2_CAT_LABELS[cat].toLowerCase().replace(' риск', '');
     copy = 'Категория риска: ' + catClinLabel + ' (клинически)';
   }
@@ -1692,9 +1807,9 @@ function buildScore2Result(v) {
     // Показываем исходный ЛПНП и его источник
     if (curLdl !== null) {
       if (pct !== null) {
-        therapyDetails += '<br><br>Исходный ЛПНП ' + fmtLdl(curLdl) + ' ммоль/л (' + ldlSourceLabel + ') — требуется снижение на ' + pct + '% для достижения < ' + fmtLdl(target) + ' ммоль/л.';
+        therapyDetails += '<br><br>Исходный ЛПНП ' + curLdl.toFixed(2).replace('.', ',') + ' ммоль/л (' + ldlSourceLabel + ') — требуется снижение на ' + pct + '% для достижения < ' + fmtLdl(target) + ' ммоль/л.';
       } else {
-        therapyDetails += '<br><br>Исходный ЛПНП ' + fmtLdl(curLdl) + ' ммоль/л (' + ldlSourceLabel + ') — целевой уровень достигнут.';
+        therapyDetails += '<br><br>Исходный ЛПНП ' + curLdl.toFixed(2).replace('.', ',') + ' ммоль/л (' + ldlSourceLabel + ') — целевой уровень достигнут.';
       }
       if (nonHdlTargetText) {
         therapyDetails += '<br><br><span style="font-size:12px;color:var(--text-2);">' + nonHdlTargetText + '</span>';
@@ -1761,9 +1876,9 @@ function buildScore2Result(v) {
 
     if (curLdl !== null) {
       if (pct !== null) {
-        copy += '; исходный ЛПНП ' + fmtLdl(curLdl) + ' ммоль/л (' + ldlSourceLabel + ') — требуется снижение на ' + pct + '% для достижения < ' + fmtLdl(target) + ' ммоль/л.';
+        copy += '; исходный ЛПНП ' + curLdl.toFixed(2).replace('.', ',') + ' ммоль/л (' + ldlSourceLabel + ') — требуется снижение на ' + pct + '% для достижения < ' + fmtLdl(target) + ' ммоль/л.';
       } else {
-        copy += '; исходный ЛПНП ' + fmtLdl(curLdl) + ' ммоль/л (' + ldlSourceLabel + ') — целевой уровень достигнут.';
+        copy += '; исходный ЛПНП ' + curLdl.toFixed(2).replace('.', ',') + ' ммоль/л (' + ldlSourceLabel + ') — целевой уровень достигнут.';
       }
     } else if (ldlWarning !== null) {
       copy += '; ' + ldlWarning;
