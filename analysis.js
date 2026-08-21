@@ -341,9 +341,25 @@ window.handleAiParse = function() {
       }
     }
 
+    // --- курение (smoking): переключатель Не курит/Бросил/Курит, не число ---
+    if (fields.smoking === 'yes' || fields.smoking === 'quit' || fields.smoking === 'no') {
+      var smokeInput = document.getElementById('smoking');
+      if (smokeInput) {
+        smokeInput.value = fields.smoking;
+        if (window.syncSmokingFromHidden) syncSmokingFromHidden();
+        else {
+          // запасной вариант, если функция недоступна
+          document.querySelectorAll('.sex-btn[data-smoke]').forEach(function(b){
+            b.classList.toggle('active', b.dataset.smoke === fields.smoking);
+          });
+        }
+        applied.push('smoking');
+      }
+    }
+
     // --- заполняем числовые поля (как applyParsedData, но без пропуска заполненных) ---
     Object.keys(fields).forEach(function(id) {
-      if (id === 'sex') return; // уже обработали
+      if (id === 'sex' || id === 'smoking') return; // уже обработали отдельно
       var input = document.getElementById(id);
       if (!input) return;
       var val = fields[id];
@@ -454,6 +470,9 @@ function renderAiAnswer(parsed, applied) {
         if (id === 'sex') {
           displayVal = (val === 'm') ? 'мужской' : (val === 'f') ? 'женский' : val;
           unit = ''; // у пола нет единиц
+        } else if (id === 'smoking') {
+          displayVal = (val === 'yes') ? 'курит' : (val === 'quit') ? 'бросил' : (val === 'no') ? 'не курит' : val;
+          unit = ''; // у курения нет единиц
         }
         var chip = document.createElement('span');
         chip.className = 'chip';
@@ -490,7 +509,8 @@ var FIELD_LABELS = {
   creatinine: 'Креатинин', hb: 'Гемоглобин', hct: 'Гематокрит', plt: 'Тромбоциты',
   wbc: 'Лейкоциты', ck_total: 'КФК общая', ck_mb: 'КФК-МВ',
   na_measured: 'Натрий', glucose: 'Глюкоза', potassium: 'Калий', magnesium: 'Магний',
-  tchol: 'Холестерин', hdl: 'ЛПВП', tg: 'Триглицериды', ldl: 'ЛПНП', hba1c: 'HbA1c'
+  tchol: 'Холестерин', hdl: 'ЛПВП', tg: 'Триглицериды', ldl: 'ЛПНП', hba1c: 'HbA1c',
+  smoking: 'Курение'
 };
 // Русские подписи для чекбоксов состояний (ИИ-ответ).
 var CHECKBOX_LABELS = {
