@@ -1653,8 +1653,8 @@ body.dark-theme .sidebar-left::-webkit-scrollbar-thumb { background: rgba(255,25
 
 /* Предупреждение о конфиденциальности в блоке ЭМК */
 .privacy-note {
-  margin: 0 0 4px 0;
-  padding: 8px 12px;
+  margin: -6px 0 12px 0;
+  padding: 10px 12px;
   font-size: 12.5px;
   line-height: 1.4;
   color: var(--amber, #b7791f);
