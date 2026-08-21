@@ -154,11 +154,34 @@
     <div class="card-header">
       📥 Быстрый ввод из ЭМК
       <span class="badge">вставьте таблицу или текст из Промед — данные заполнятся автоматически</span>
+      <button id="aiParseBtn" class="btn-ai" title="ИИ: разобрать произвольный текст выписки">
+        <span class="ai-ico">🤖</span><span id="aiBtnLabel">Разобрать ИИ</span>
+      </button>
       <button id="clearEmrBtn" title="Очистить поле">🗑️</button>
     </div>
     <div class="card-body">
-      <textarea id="emrPaste" rows="3" placeholder="Вставьте скопированный текст или таблицу анализов из Промед (Ctrl+V)..."></textarea>
+      <textarea id="emrPaste" rows="3" placeholder="Вставьте скопированный текст или таблицу анализов из Промед (Ctrl+V)... Или произвольное описание — тогда нажмите «Разобрать ИИ»"></textarea>
       <div id="emrStatus">⏳ Вставьте текст из ЭМК...</div>
+      <div id="aiStatus" class="ai-answer" style="display:none;">
+        <div class="ai-answer-head">
+          <div class="ai-avatar">🤖</div>
+          <div class="t">ИИ-ассистент</div>
+          <div class="s" id="aiTime"></div>
+        </div>
+        <div class="ai-answer-body">
+          <div id="aiFieldsSec" style="display:none;">
+            <div class="ai-sec-title">Найдено показателей</div>
+            <div class="chips" id="aiChips"></div>
+          </div>
+          <div id="aiCommentSec" style="display:none;">
+            <div class="ai-sec-title">Комментарий</div>
+            <div class="ai-comment" id="aiComment"></div>
+          </div>
+          <div id="aiMsgSec">
+            <div class="ai-msg" id="aiMsg"></div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 

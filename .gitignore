@@ -9,3 +9,4 @@ _*.pdf
 # Планы и заметки ассистента
 /docs/
 /.reasonix/
+AGENTS.md

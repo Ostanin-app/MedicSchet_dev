@@ -1844,3 +1844,134 @@ button.floating-calc.has-warnings {
   white-space: normal;
   max-width: 340px;
 }
+
+/* ============================================================
+   ИИ-БЛОК: кнопка «Разобрать ИИ» и карточка ответа
+   Использует те же токены палитры, что и весь сайт.
+   ============================================================ */
+
+/* --- Кнопка акцентная (индиго CTA) --- */
+.btn-ai {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--primary);
+  color: var(--on-primary);
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 600;
+  padding: 9px 16px;
+  border: none;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: background .18s, box-shadow .18s, transform .08s;
+  box-shadow: var(--shadow-primary);
+  white-space: nowrap;
+}
+.btn-ai:hover { background: var(--primary-2); box-shadow: 0 10px 24px -8px rgba(84,87,214,.6); }
+.btn-ai:active { transform: translateY(1px); }
+.btn-ai:disabled { background: var(--border-strong); box-shadow: none; cursor: not-allowed; opacity: .85; }
+.btn-ai .ai-ico { font-size: 15px; line-height: 1; }
+
+/* спиннер загрузки */
+.btn-ai .spinner {
+  width: 14px; height: 14px;
+  border: 2px solid rgba(255,255,255,.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: aiSpin .7s linear infinite;
+}
+@keyframes aiSpin { to { transform: rotate(360deg); } }
+
+/* --- Карточка ответа ИИ --- */
+.ai-answer {
+  margin-top: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  background: var(--primary-softer);
+  overflow: hidden;
+  animation: aiIn .25s ease;
+}
+@keyframes aiIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+.ai-answer-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+.ai-avatar {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  background: var(--primary);
+  color: #fff;
+  font-size: 15px;
+  flex: none;
+  box-shadow: var(--shadow-primary);
+}
+.ai-answer-head .t { font-weight: 700; font-size: 13.5px; color: var(--text); }
+.ai-answer-head .s { font-size: 11.5px; color: var(--muted); margin-left: auto; }
+
+.ai-answer-body {
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+.ai-answer-body > div { display: flex; flex-direction: column; gap: 7px; }
+
+.ai-sec-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  color: var(--muted);
+}
+
+/* чипы заполненных полей */
+.chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.chip {
+  display: inline-flex; align-items: baseline; gap: 5px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 30px;
+  padding: 4px 11px;
+  font-size: 12.5px; font-weight: 600; color: var(--text);
+  box-shadow: var(--shadow-1);
+}
+.chip .v { color: var(--primary); font-weight: 700; }
+.chip .u { color: var(--muted); font-weight: 500; font-size: 11px; }
+
+/* комментарий ИИ */
+.ai-comment {
+  font-size: 13.5px;
+  color: var(--text-2);
+  line-height: 1.6;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 11px 13px;
+}
+
+/* состояния: ошибка / мало данных */
+.ai-answer.err { background: var(--red-soft); border-color: var(--red); }
+.ai-answer.warn { background: var(--orange-soft); border-color: var(--orange); }
+.ai-msg { font-size: 13.5px; color: var(--text-2); line-height: 1.55; }
+.ai-msg b { color: var(--red-deep); }
+
+/* --- Тёмная тема --- */
+body.dark-theme .btn-ai { box-shadow: 0 8px 20px -8px rgba(111,114,230,.6); }
+body.dark-theme .btn-ai:hover { box-shadow: 0 10px 24px -8px rgba(111,114,230,.7); }
+body.dark-theme .ai-answer { background: var(--primary-softer); border-color: var(--border); }
+body.dark-theme .ai-answer-head { background: var(--surface); border-bottom-color: var(--border); }
+body.dark-theme .chip,
+body.dark-theme .ai-comment {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text);
+}
+body.dark-theme .ai-answer.err { background: var(--red-soft); border-color: var(--red); }
+body.dark-theme .ai-answer.warn { background: var(--orange-soft); border-color: var(--orange); }

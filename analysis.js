@@ -286,6 +286,201 @@ function handleEmrPaste() {
 }
 
 // ===================================================
+//  ИИ-РАЗБОР СЛУЧАЯ (прокси на localhost:8787)
+// ===================================================
+//  Берёт произвольный текст из emrPaste, отправляет на локальный прокси,
+//  получает JSON {fields, suggest_scales, comment} и:
+//   1) заполняет поля тем же способом, что applyParsedData (через getElementById);
+//   2) показывает комментарий ИИ;
+//   3) предлагает включить релевантные шкалы — НО не включает автоматически,
+//      врач нажимает «Применить» (контроль врача, см. AGENTS.md).
+window.handleAiParse = function() {
+  var textarea = document.getElementById('emrPaste');
+  var statusEl = document.getElementById('aiStatus');
+  var btn = document.getElementById('aiParseBtn');
+  if (!textarea || !statusEl) return;
+
+  var text = textarea.value;
+  if (!text || text.trim().length < 5) {
+    showAiMsg('warn', 'Сначала вставьте текст выписки или протокола в поле выше.');
+    return;
+  }
+
+  // состояние загрузки
+  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span><span>Анализирую…</span>'; }
+  showAiMsg('loading', 'ИИ разбирает текст…');
+
+  fetch('http://localhost:8787/api/parse', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text: text })
+  })
+  .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
+  .then(function(res) {
+    if (!res.ok) {
+      showAiMsg('err', 'Ошибка ИИ: ' + (res.data.error || 'неизвестно') +
+        '\nПроверьте, запущен ли прокси (node server.js в папке MedicSchet-proxy).');
+      return;
+    }
+
+    var parsed = res.data || {};
+    var fields = parsed.fields || {};
+    var applied = [];
+
+    // --- пол (sex) обрабатываем отдельно: это переключатель, не число ---
+    if (fields.sex === 'm' || fields.sex === 'f') {
+      var sexInput = document.getElementById('sex');
+      if (sexInput) {
+        sexInput.value = fields.sex;
+        if (window.syncSexFromHidden) syncSexFromHidden();
+        else {
+          // запасной вариант, если функция недоступна
+          document.querySelectorAll('.sex-btn[data-sex]').forEach(function(b){
+            b.classList.toggle('active', b.dataset.sex === fields.sex);
+          });
+        }
+        applied.push('sex');
+      }
+    }
+
+    // --- заполняем числовые поля (как applyParsedData, но без пропуска заполненных) ---
+    Object.keys(fields).forEach(function(id) {
+      if (id === 'sex') return; // уже обработали
+      var input = document.getElementById(id);
+      if (!input) return;
+      var val = fields[id];
+      if (val === null || val === undefined || val === '') return;
+      var num = parseFloat(String(val).replace(',', '.'));
+      if (isNaN(num)) return;
+      if (id === 'sbp' || id === 'hr' || id === 'age') num = Math.round(num);
+      input.value = num;
+      var grp = input.closest('.input-group');
+      if (grp) {
+        grp.classList.add('emr-filled');
+        input.addEventListener('input', function rem(e) {
+          var g = e.target.closest('.input-group');
+          if (g) g.classList.remove('emr-filled');
+        }, { once: true });
+      }
+      applied.push(id);
+    });
+
+    // --- показываем карточку ответа ---
+    renderAiAnswer(parsed, applied);
+
+    // обновляем зависимые панели, как после обычного ввода
+    if (window.autofill) autofill();
+    if (window.updateAnalysisPanel) updateAnalysisPanel();
+    if (window.saveAppState) saveAppState();
+  })
+  .catch(function(err) {
+    showAiMsg('err', 'Не удалось связаться с прокси: ' + err.message +
+      '\nЗапустите прокси: node server.js (папка MedicSchet-proxy).');
+  })
+  .then(function() {
+    if (btn) { btn.disabled = false; btn.innerHTML = '<span class="ai-ico">🤖</span><span id="aiBtnLabel">Разобрать ИИ</span>'; }
+  });
+};
+
+// Показывает служебное сообщение (loading / warn / err) в карточке ИИ.
+function showAiMsg(kind, msg) {
+  var statusEl = document.getElementById('aiStatus');
+  if (!statusEl) return;
+  statusEl.className = 'ai-answer' + (kind === 'err' ? ' err' : kind === 'warn' ? ' warn' : '');
+  statusEl.style.display = '';
+  // прячем секции с данными, показываем только сообщение
+  var secs = ['aiFieldsSec', 'aiCommentSec'];
+  secs.forEach(function(s) { var el = document.getElementById(s); if (el) el.style.display = 'none'; });
+  var msgSec = document.getElementById('aiMsgSec');
+  var msgEl = document.getElementById('aiMsg');
+  if (msgSec) msgSec.style.display = '';
+  if (msgEl) {
+    msgEl.textContent = msg;
+    msgEl.innerHTML = escapeHtml(msg).replace(/\n/g, '<br>');
+  }
+  var timeEl = document.getElementById('aiTime');
+  if (timeEl) timeEl.textContent = '';
+}
+
+// Рендерит карточку ответа ИИ: чипы полей, комментарий, шкалы.
+function renderAiAnswer(parsed, applied) {
+  var statusEl = document.getElementById('aiStatus');
+  if (!statusEl) return;
+  statusEl.className = 'ai-answer';
+  statusEl.style.display = '';
+
+  var timeEl = document.getElementById('aiTime');
+  if (timeEl) timeEl.textContent = 'только что';
+
+  // --- секция полей (чипы) ---
+  var fieldsSec = document.getElementById('aiFieldsSec');
+  var chipsEl = document.getElementById('aiChips');
+  if (fieldsSec && chipsEl) {
+    chipsEl.innerHTML = '';
+    if (applied.length > 0) {
+      fieldsSec.style.display = '';
+      applied.forEach(function(id) {
+        var label = FIELD_LABELS[id] || id;
+        var unit = FIELD_UNITS[id] || '';
+        var val = parsed.fields[id];
+        var displayVal = val;
+        if (id === 'sex') {
+          displayVal = (val === 'm') ? 'мужской' : (val === 'f') ? 'женский' : val;
+          unit = ''; // у пола нет единиц
+        }
+        var chip = document.createElement('span');
+        chip.className = 'chip';
+        chip.innerHTML = '<span>' + escapeHtml(label) + '</span>' +
+          '<span class="v">' + escapeHtml(String(displayVal)) + '</span>' +
+          (unit ? '<span class="u">' + escapeHtml(unit) + '</span>' : '');
+        chipsEl.appendChild(chip);
+      });
+    } else {
+      fieldsSec.style.display = 'none';
+    }
+  }
+
+  // --- секция комментария ---
+  var commentSec = document.getElementById('aiCommentSec');
+  var commentEl = document.getElementById('aiComment');
+  if (commentSec && commentEl) {
+    if (parsed.comment) {
+      commentSec.style.display = '';
+      commentEl.textContent = parsed.comment;
+    } else {
+      commentSec.style.display = 'none';
+    }
+  }
+
+  // сообщение скрываем (показываем только данные)
+  var msgSec = document.getElementById('aiMsgSec');
+  if (msgSec) msgSec.style.display = 'none';
+}
+
+// Русские подписи и единицы для чипов заполненных полей (ИИ-ответ).
+var FIELD_LABELS = {
+  sex: 'Пол', age: 'Возраст', height: 'Рост', weight: 'Вес', sbp: 'АД сист.', hr: 'ЧСС',
+  creatinine: 'Креатинин', hb: 'Гемоглобин', hct: 'Гематокрит', plt: 'Тромбоциты',
+  wbc: 'Лейкоциты', ck_total: 'КФК общая', ck_mb: 'КФК-МВ',
+  na_measured: 'Натрий', glucose: 'Глюкоза', potassium: 'Калий', magnesium: 'Магний',
+  tchol: 'Холестерин', hdl: 'ЛПВП', tg: 'Триглицериды', ldl: 'ЛПНП', hba1c: 'HbA1c'
+};
+var FIELD_UNITS = {
+  age: 'лет', height: 'см', weight: 'кг', sbp: 'мм рт.ст.', hr: 'уд/мин',
+  creatinine: 'мкмоль/л', hb: 'г/л', hct: '%', plt: '×10⁹/л', wbc: '×10⁹/л',
+  ck_total: 'Ед/л', ck_mb: 'Ед/л', na_measured: 'ммоль/л', glucose: 'ммоль/л',
+  potassium: 'ммоль/л', magnesium: 'ммоль/л', tchol: 'ммоль/л', hdl: 'ммоль/л',
+  tg: 'ммоль/л', ldl: 'ммоль/л', hba1c: '%'
+};
+
+function escapeHtml(s) {
+  if (!s) return '';
+  return String(s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// ===================================================
 //  МОДУЛЬ: КАЛИЙ
 // ===================================================
 window.calcKInfusion = function() {
@@ -1027,6 +1222,12 @@ document.addEventListener('DOMContentLoaded', function() {
         statusEl.style.color = 'var(--muted)';
       }
     });
+  }
+
+  // --- ИИ: разбор произвольного текста выписки (прокси localhost:8787) ---
+  var aiBtn = document.getElementById('aiParseBtn');
+  if (aiBtn) {
+    aiBtn.addEventListener('click', function() { handleAiParse(); });
   }
 
   // --- Обработчики полей анализа (КФК, Na, K, Mg) ---
