@@ -522,7 +522,12 @@ var CHECKBOX_LABELS = {
   'cb_embolism': 'Системная эмболия',
   'cb_vte': 'ТГВ/ТЭЛА в анамнезе',
   'cb_vasc': 'Сосудистое заболевание',
-  'cb_verapamil': 'Приём верапамила'
+  'cb_verapamil': 'Приём верапамила',
+  'pesi_cancer': 'ЗНО (активное или в анамнезе)',
+  'cap_cancer': 'Злокачественная опухоль (Caprini)',
+  'wells_cancer': 'ЗНО с лечением (Wells)',
+  'geneva_cancer': 'Активное ЗНО (Женева)',
+  'arc_cancer': 'Активное ЗНО (ARC-HBR)'
 };
 var FIELD_UNITS = {
   age: 'лет', height: 'см', weight: 'кг', sbp: 'мм рт.ст.', hr: 'уд/мин',
