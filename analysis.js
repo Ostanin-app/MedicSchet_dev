@@ -363,6 +363,25 @@ window.handleAiParse = function() {
       applied.push(id);
     });
 
+    // --- заполняем чекбоксы состояний (вариант А: только ставим, не снимаем) ---
+    var checkboxes = parsed.checkboxes || {};
+    Object.keys(CHECKBOX_LABELS).forEach(function(cbId) {
+      if (checkboxes[cbId] !== true) return; // только подтверждённые true
+      var cbEl = document.getElementById(cbId);
+      if (!cbEl) return;
+      if (cbEl.checked) return; // уже отмечен врачом — не трогаем (вариант А)
+      cbEl.checked = true;
+      var grp = cbEl.closest('.cb-item');
+      if (grp) {
+        grp.classList.add('emr-filled');
+        cbEl.addEventListener('change', function rem(e) {
+          var g = e.target.closest('.cb-item');
+          if (g) g.classList.remove('emr-filled');
+        }, { once: true });
+      }
+      applied.push(cbId);
+    });
+
     // --- показываем карточку ответа ---
     renderAiAnswer(parsed, applied);
 
@@ -418,6 +437,16 @@ function renderAiAnswer(parsed, applied) {
     if (applied.length > 0) {
       fieldsSec.style.display = '';
       applied.forEach(function(id) {
+        // чекбокс состояния — показываем галочку вместо значения
+        if (id.indexOf('cb_') === 0) {
+          var cbLabel = CHECKBOX_LABELS[id] || id;
+          var chipCb = document.createElement('span');
+          chipCb.className = 'chip';
+          chipCb.innerHTML = '<span>' + escapeHtml(cbLabel) + '</span>' +
+            '<span class="v">✓</span>';
+          chipsEl.appendChild(chipCb);
+          return;
+        }
         var label = FIELD_LABELS[id] || id;
         var unit = FIELD_UNITS[id] || '';
         var val = parsed.fields[id];
@@ -462,6 +491,18 @@ var FIELD_LABELS = {
   wbc: 'Лейкоциты', ck_total: 'КФК общая', ck_mb: 'КФК-МВ',
   na_measured: 'Натрий', glucose: 'Глюкоза', potassium: 'Калий', magnesium: 'Магний',
   tchol: 'Холестерин', hdl: 'ЛПВП', tg: 'Триглицериды', ldl: 'ЛПНП', hba1c: 'HbA1c'
+};
+// Русские подписи для чекбоксов состояний (ИИ-ответ).
+var CHECKBOX_LABELS = {
+  'cb_dm': 'Сахарный диабет',
+  'cb_hf': 'Сердечная недостаточность',
+  'cb_htn': 'АГ (диагностированная)',
+  'cb_stroke': 'Инсульт в анамнезе',
+  'cb_tia': 'ТИА в анамнезе',
+  'cb_embolism': 'Системная эмболия',
+  'cb_vte': 'ТГВ/ТЭЛА в анамнезе',
+  'cb_vasc': 'Сосудистое заболевание',
+  'cb_verapamil': 'Приём верапамила'
 };
 var FIELD_UNITS = {
   age: 'лет', height: 'см', weight: 'кг', sbp: 'мм рт.ст.', hr: 'уд/мин',
