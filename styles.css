@@ -1667,6 +1667,16 @@ body.dark-theme .privacy-note {
   background: rgba(246, 193, 119, 0.10);
   border-color: rgba(246, 193, 119, 0.30);
 }
+.privacy-note .dev-badge {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--muted-foreground, #6b7280);
+}
+body.dark-theme .privacy-note .dev-badge {
+  color: #9aa0b5;
+}
 
 /* ============================================================
    КАСТОМНЫЕ РАСКРЫВАЮЩИЕСЯ СПИСКИ (вместо системных select)
