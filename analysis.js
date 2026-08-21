@@ -286,14 +286,12 @@ function handleEmrPaste() {
 }
 
 // ===================================================
-//  ИИ-РАЗБОР СЛУЧАЯ (прокси на localhost:8787)
+//  ИИ-РАЗБОР СЛУЧАЯ (публичный прокси Yandex Cloud Function → GigaChat)
 // ===================================================
-//  Берёт произвольный текст из emrPaste, отправляет на локальный прокси,
-//  получает JSON {fields, suggest_scales, comment} и:
+//  Берёт произвольный текст из emrPaste, отправляет на публичный прокси
+//  (Yandex Cloud Function → GigaChat), получает JSON {fields, comment} и:
 //   1) заполняет поля тем же способом, что applyParsedData (через getElementById);
-//   2) показывает комментарий ИИ;
-//   3) предлагает включить релевантные шкалы — НО не включает автоматически,
-//      врач нажимает «Применить» (контроль врача, см. AGENTS.md).
+//   2) показывает комментарий ИИ (с упоминанием уместных шкал).
 window.handleAiParse = function() {
   var textarea = document.getElementById('emrPaste');
   var statusEl = document.getElementById('aiStatus');
@@ -310,7 +308,7 @@ window.handleAiParse = function() {
   if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span><span>Анализирую…</span>'; }
   showAiMsg('loading', 'ИИ разбирает текст…');
 
-  fetch('http://localhost:8787/api/parse', {
+  fetch('https://functions.yandexcloud.net/d4evnu5gkvglk7oah3qi', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ text: text })
@@ -319,7 +317,7 @@ window.handleAiParse = function() {
   .then(function(res) {
     if (!res.ok) {
       showAiMsg('err', 'Ошибка ИИ: ' + (res.data.error || 'неизвестно') +
-        '\nПроверьте, запущен ли прокси (node server.js в папке MedicSchet-proxy).');
+        '\nПопробуйте ещё раз или проверьте подключение к интернету.');
       return;
     }
 
@@ -1224,7 +1222,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   }
 
-  // --- ИИ: разбор произвольного текста выписки (прокси localhost:8787) ---
+  // --- ИИ: разбор произвольного текста выписки (прокси Yandex Cloud Function) ---
   var aiBtn = document.getElementById('aiParseBtn');
   if (aiBtn) {
     aiBtn.addEventListener('click', function() { handleAiParse(); });

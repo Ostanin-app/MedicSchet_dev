@@ -1651,6 +1651,23 @@ body.dark-theme .sidebar-left::-webkit-scrollbar-thumb { background: rgba(255,25
 #emrStatus { margin-top: 8px; font-size: 13px; color: var(--green); }
 .disclaimer-version a { color: var(--primary); }
 
+/* Предупреждение о конфиденциальности в блоке ЭМК */
+.privacy-note {
+  margin: 0 0 4px 0;
+  padding: 8px 12px;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--amber, #b7791f);
+  background: rgba(183, 121, 31, 0.08);
+  border: 1px solid rgba(183, 121, 31, 0.25);
+  border-radius: 8px;
+}
+body.dark-theme .privacy-note {
+  color: #f6c177;
+  background: rgba(246, 193, 119, 0.10);
+  border-color: rgba(246, 193, 119, 0.30);
+}
+
 /* ============================================================
    КАСТОМНЫЕ РАСКРЫВАЮЩИЕСЯ СПИСКИ (вместо системных select)
    ============================================================ */
