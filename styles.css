@@ -176,8 +176,8 @@ body.dark-theme .mode-btn.active {
   box-shadow: 0 2px 10px -2px rgba(138,138,247,.5);
 }
 
-/* Кнопки в шапке (тема, инструкция, демо) */
-#themeToggle, #helpOpenBtn, #demoToggle {
+/* Кнопки в шапке (тема, инструкция, демо, рекомендации) */
+#themeToggle, #helpOpenBtn, #demoToggle, #recBtn {
   background: rgba(255,255,255,.12) !important;
   border: 1px solid rgba(255,255,255,.22) !important;
   color: #fff !important;
@@ -187,13 +187,15 @@ body.dark-theme .mode-btn.active {
   border-radius: 9px;
   backdrop-filter: blur(4px);
   transition: background .18s, transform .12s;
+  line-height: 1.2;
 }
+#recBtn { text-decoration: none; display: inline-block; font-weight: 400; }
 #themeToggle { font-size: 19px; padding: 6px 11px; }
-#themeToggle:hover, #helpOpenBtn:hover, #demoToggle:hover {
+#themeToggle:hover, #helpOpenBtn:hover, #demoToggle:hover, #recBtn:hover {
   background: rgba(255,255,255,.2) !important;
   transform: translateY(-1px);
 }
-#themeToggle:active, #helpOpenBtn:active, #demoToggle:active { transform: translateY(0); }
+#themeToggle:active, #helpOpenBtn:active, #demoToggle:active, #recBtn:active { transform: translateY(0); }
 
 /* Выпадающее меню "Демо" */
 #demoDropdown {
@@ -692,6 +694,10 @@ select option {
   flex: 1;
 }
 .result-value { font-size: 23px; font-weight: 700; margin-bottom: 3px; line-height: 1.25; font-family: var(--mono); letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
+/* Кокрофт-Голт: три метода (TBW/IBW/ABW) — «рабочий» выделен жирным и цветом риска карточки */
+.result-value .cg-working { font-weight: 800; }
+.result-value .cg-plain { color: var(--muted); font-weight: 500; }
+.result-value .cg-plain + .cg-plain::before, .result-value .cg-plain + .cg-working::before, .result-value .cg-working + .cg-plain::before, .result-value .cg-working + .cg-working::before { content: " · "; color: var(--border-strong); }
 .result-interp { font-size: 13px; font-weight: 700; margin-bottom: 6px; }
 .result-details { font-size: 12px; color: var(--text-2); line-height: 1.55; }
 .result-hint {
@@ -1275,14 +1281,16 @@ body.dark-theme header {
 body.dark-theme header::after { display: none; }
 body.dark-theme #themeToggle,
 body.dark-theme #helpOpenBtn,
-body.dark-theme #demoToggle {
+body.dark-theme #demoToggle,
+body.dark-theme #recBtn {
   background: rgba(255,255,255,.05) !important;
   border: 1px solid rgba(255,255,255,.1) !important;
   color: #d7d7dd !important;
 }
 body.dark-theme #themeToggle:hover,
 body.dark-theme #helpOpenBtn:hover,
-body.dark-theme #demoToggle:hover { background: rgba(255,255,255,.1) !important; color: #fff !important; }
+body.dark-theme #demoToggle:hover,
+body.dark-theme #recBtn:hover { background: rgba(255,255,255,.1) !important; color: #fff !important; }
 
 /* --- Выпадающее меню "Демо" --- */
 body.dark-theme #demoDropdown { background: var(--surface-2) !important; border-color: var(--border) !important; box-shadow: var(--shadow-3) !important; }

@@ -86,30 +86,13 @@ function getWorkingCrClData(age, sex, height, weight, creatUmol) {
   var workingCrcl = tbwCrcl;
   var workingMethodLabel = 'TBW';
 
-  if (bmi !== null && ibwCrcl !== null) {
-    if (bmi < 18.5) {
-      workingCrcl = tbwCrcl;
-      workingMethodLabel = 'TBW';
-    } else if (bmi < 25) {
-      workingCrcl = ibwCrcl;
-      workingMethodLabel = 'IBW';
-    } else if (bmi < 30) {
-      if (abwCrcl !== null) {
-        workingCrcl = abwCrcl;
-        workingMethodLabel = 'ABW 0.4';
-      } else {
-        workingCrcl = ibwCrcl;
-        workingMethodLabel = 'IBW';
-      }
-    } else {
-      if (abwCrcl !== null) {
-        workingCrcl = abwCrcl;
-        workingMethodLabel = 'ABW 0.4';
-      } else {
-        workingCrcl = ibwCrcl;
-        workingMethodLabel = 'IBW';
-      }
-    }
+  // Рабочий КлКр: по решению врача (25.08.2026):
+  // — при ожирении (ИМТ ≥ 30) — скорректированный вес (ABW 0.4);
+  // — у остальных — фактический вес (TBW).
+  // Идеальный вес (IBW) как «рабочий» НЕ используется автоматически.
+  if (bmi !== null && bmi >= 30 && abwCrcl !== null) {
+    workingCrcl = abwCrcl;
+    workingMethodLabel = 'ABW 0.4';
   }
 
   return {
@@ -248,7 +231,7 @@ function buildCgComparisonHint(plansByMethod, workingMethodLabel, workingCrcl) {
   if (anyDifference) {
     html +=
       '<div style="margin-top:6px;">' +
-        '⚠️ Доза зависит от выбора веса. Используйте рабочий КлКр как ориентир и принимайте решение с учётом клиники и риска кровотечения.' +
+        'Доза зависит от выбора веса. Принимайте решение с учётом клиники и риска кровотечения.' +
       '</div>';
   } else {
     html +=
@@ -2054,31 +2037,27 @@ function calculate() {
         methodNote = 'Рабочий КлКр рассчитан по фактическому весу (Winter, 2012). Для оценки по идеальной массе тела (IBW) внесите рост.';
       }
 
-      if (bmi !== null && cgCrclIbw !== null) {
-        if (bmi < 18.5) {
-          workingCrcl = cgCrclTbw; workingMethodLabel = 'TBW'; workingMethodRu = 'фактический вес';
-          categoryText = 'Дефицит массы тела';
-          methodNote = 'Рабочий КлКр рассчитан по фактическому весу (Winter, 2012).';
-          methodBlockStyle = 'margin-top:8px;padding:8px 10px;background:var(--green-soft);border-left:3px solid var(--green);border-radius:0 6px 6px 0;font-size:12px;line-height:1.5;';
-        } else if (bmi < 25) {
-          workingCrcl = cgCrclIbw; workingMethodLabel = 'IBW'; workingMethodRu = 'идеальный вес';
-          categoryText = 'Нормальная масса тела';
-          methodNote = 'Рабочий КлКр рассчитан по идеальному весу (Winter, 2012).';
-          methodBlockStyle = 'margin-top:8px;padding:8px 10px;background:var(--green-soft);border-left:3px solid var(--green);border-radius:0 6px 6px 0;font-size:12px;line-height:1.5;';
-        } else if (bmi < 30) {
-          if (cgCrclAbw !== null) { workingCrcl = cgCrclAbw; workingMethodLabel = 'ABW 0.4'; workingMethodRu = 'скорректированный вес'; }
-          else { workingCrcl = cgCrclIbw; workingMethodLabel = 'IBW'; workingMethodRu = 'идеальный вес'; }
-          categoryText = 'Избыточная масса тела';
-          methodNote = 'КлКр по фактическому весу может быть завышен. ABW 0.4 — наименее смещённая оценка по Winter (2012).';
-          methodBlockStyle = 'margin-top:8px;padding:8px 10px;background:var(--orange-soft);border-left:3px solid var(--orange);border-radius:0 6px 6px 0;font-size:12px;line-height:1.5;';
-        } else {
-          if (cgCrclAbw !== null) { workingCrcl = cgCrclAbw; workingMethodLabel = 'ABW 0.4'; workingMethodRu = 'скорректированный вес'; }
-          else { workingCrcl = cgCrclIbw; workingMethodLabel = 'IBW'; workingMethodRu = 'идеальный вес'; }
-          categoryText = 'Ожирение';
-          methodNote = 'КлКр по фактическому весу может значительно завышать функцию почек. ABW 0.4 — наименее смещённая оценка по Winter (2012), но остаётся приблизительной.';
-          methodBlockStyle = 'margin-top:8px;padding:8px 10px;background:var(--red-soft);border-left:3px solid var(--red);border-radius:0 6px 6px 0;font-size:12px;line-height:1.5;';
-        }
-      }
+      if (bmi !== null) {
+              if (bmi >= 30 && cgCrclAbw !== null) {
+                // Ожирение: рабочий КлКр по скорректированному весу (ABW 0.4)
+                workingCrcl = cgCrclAbw; workingMethodLabel = 'ABW 0.4'; workingMethodRu = 'скорректированный вес';
+                categoryText = 'Ожирение';
+                methodNote = 'Рабочий КлКр рассчитан по скорректированному весу (ABW 0.4): при ожирении фактический вес завышает функцию почек (Winter, 2012).';
+                methodBlockStyle = 'margin-top:8px;padding:8px 10px;background:var(--red-soft);border-left:3px solid var(--red);border-radius:0 6px 6px 0;font-size:12px;line-height:1.5;';
+              } else {
+                // Все остальные: рабочий КлКр по фактическому весу (TBW)
+                workingCrcl = cgCrclTbw; workingMethodLabel = 'TBW'; workingMethodRu = 'фактический вес';
+                if (bmi < 18.5) {
+                  categoryText = 'Дефицит массы тела';
+                } else if (bmi < 25) {
+                  categoryText = 'Нормальная масса тела';
+                } else {
+                  categoryText = 'Избыточная масса тела';
+                }
+                methodNote = 'Рабочий КлКр рассчитан по фактическому весу (Winter, 2012).';
+                methodBlockStyle = 'margin-top:8px;padding:8px 10px;background:var(--green-soft);border-left:3px solid var(--green);border-radius:0 6px 6px 0;font-size:12px;line-height:1.5;';
+              }
+            }
 
       if (isOverweightForCg && ibw !== null && cgCrclIbw !== null && cgCrclTbw !== null && weight > ibw) {
         brownLower = Math.min(cgCrclIbw, cgCrclTbw);
@@ -2131,9 +2110,29 @@ function calculate() {
         hintText = buildSingleCgHint(workingPlan);
       }
 
+      // Крупно показываем ВСЕ доступные методы (TBW/IBW/ABW) с подписями,
+      // «рабочий» метод выделяем жирным и цветом риска; единица «мл/мин»
+      // ставится сразу после рабочего значения (решение врача 25.08.2026).
+      var cgValueParts = [];
+      function cgPart(methodKey, methodLabel, val) {
+        if (val === null) return;
+        var isWorking = (workingMethodLabel === methodKey);
+        var txt = methodLabel + ' ' + val.toFixed(1).replace('.', ',') +
+          (isWorking ? ' мл/мин' : '');
+        cgValueParts.push(
+          (isWorking ? '<b class="cg-working">' : '<span class="cg-plain">') +
+          txt +
+          (isWorking ? '</b>' : '</span>')
+        );
+      }
+      cgPart('TBW', 'TBW', cgCrclTbw);
+      cgPart('IBW', 'IBW', cgCrclIbw);
+      cgPart('ABW 0.4', 'ABW', cgCrclAbw);
+      var cgValueHtml = cgValueParts.join('');
+
       resultsHTML += makeResultCard(
         'Кокрофт-Голт',
-        workingCrcl.toFixed(1) + ' мл/мин',
+        cgValueHtml,
         cgInterp,
         cgRisk,
         detailsText,

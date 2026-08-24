@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Перикардиты 2025 — клинические рекомендации (переработанные)</title>
+<style>
+:root{--bg:#f5f7fa;--surface:#fff;--border:#e2e8f0;--text:#1e293b;--text-2:#64748b;--muted:#94a3b8;--primary:#2563a8;--primary-soft:rgba(37,99,168,.08)}
+body.dark{--bg:#0f172a;--surface:#1e293b;--border:#334155;--text:#e2e8f0;--text-2:#94a3b8;--muted:#64748b;--primary:#60a5fa;--primary-soft:rgba(96,165,250,.12)}
+*{box-sizing:border-box}
+body{margin:0;font-family:Inter,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text)}
+.container{max-width:980px;margin:0 auto;padding:20px 16px 60px}
+.topbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+.topbar h1{font-size:20px;margin:0;font-weight:800}
+.topbar .sub{color:var(--muted);font-size:12.5px;margin-top:2px}
+.switch{display:flex;gap:6px;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:4px}
+.switch button{border:none;background:transparent;padding:8px 14px;border-radius:7px;cursor:pointer;font-size:13px;font-weight:600;color:var(--text-2)}
+.switch button.active{background:var(--primary);color:#fff}
+.disc{background:var(--primary-soft);border-left:3px solid var(--primary);padding:10px 14px;font-size:12.5px;color:var(--text-2);border-radius:0 8px 8px 0;margin-bottom:18px}
+.section{margin-bottom:26px}
+.section-h{font-size:17px;font-weight:800;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.section-h .num{color:var(--muted);font-weight:600;font-size:13px}
+.block{background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:10px;overflow:hidden}
+.block-h{padding:10px 14px;font-weight:700;font-size:13.5px;cursor:pointer;display:flex;align-items:center;gap:8px;user-select:none}
+.block-h:hover{background:var(--primary-soft)}
+.block-h .arrow{transition:transform .15s;color:var(--muted);font-size:11px}
+.block.open .block-h .arrow{transform:rotate(90deg)}
+.block-h .badge{margin-left:auto;font-size:10.5px;color:var(--muted);background:var(--bg);padding:2px 8px;border-radius:20px;font-weight:600}
+.block-body{display:none;padding:0 14px 14px}
+.mode-2 .block-body,.mode-3 .block-body{display:block}
+.block.open .block-body{display:block}
+.orig{font-size:13px;line-height:1.6;color:var(--text-2)}
+.summary{font-size:13.5px;line-height:1.6;margin-top:10px;padding:12px 14px;background:var(--primary-soft);border-radius:8px}
+.summary h3,.summary h4,.summary h5{margin:10px 0 6px;font-size:13.5px}
+.summary h3:first-child,.summary h4:first-child{margin-top:0}
+.summary p{margin:6px 0}
+.summary ul,.summary ol{margin:6px 0;padding-left:20px}
+.summary li{margin:3px 0}
+.mode-1 .summary{display:none}
+.mode-1 .sum-label{display:none}
+.mode-3 .orig{display:none}
+.mode-3 .orig-label{display:none}
+.orig-label,.sum-label{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+.orig-label{color:var(--muted)}
+.sum-label{color:var(--primary)}
+.summary table,.orig table{width:100%;border-collapse:collapse;margin:8px 0;font-size:12.5px}
+.summary th,.summary td,.orig th,.orig td{border:1px solid var(--border);padding:6px 8px;text-align:left;vertical-align:top}
+.summary th,.orig th{background:var(--bg);font-weight:700}
+</style>
+</head>
+<body>
+<div class="container">
+<div class="topbar"><div><h1>Перикардиты 2025 — РКО</h1><div class="sub">Раздел «Лечение» · переработанные для практикующего врача</div></div>
+<div class="switch" id="modeSwitch"><button data-mode="1" class="active">1 · Оригинал</button><button data-mode="2">2 · Оригинал + пересказ</button><button data-mode="3">3 · Только пересказ</button></div></div>
+<div class="disc">⚠️ Переработанный текст носит ознакомительный характер и не заменяет оригинал клинических рекомендаций. При принятии клинических решений руководствуйтесь оригинальным текстом. Источник: «Перикардиты 2025», РКО.</div>
+<div id="content"></div>
+</div>
+<script src="pericarditis_data.js"></script>
+<script>
+var SECTIONS=[{p:"3.1.1",t:"3.1.1 Лечение острого перикардита"},{p:"3.1.2",t:"3.1.2 Лечение рецидивирующего перикардита"},{p:"3.1.3",t:"3.1.3 Постоянный и хронический перикардит"},{p:"3.1.4",t:"3.1.4 Выпот и тампонада"},{p:"3.1.5",t:"3.1.5 Миоперикардит"},{p:"3.1.6",t:"3.1.6 Бактериальный перикардит"},{p:"3.1.7",t:"3.1.7 Констриктивный перикардит"},{p:"3.2.1",t:"3.2.1 Интервенционные и хирургические методы"},{p:"3.2.2",t:"3.2.2 Перикардиоцентез и дренирование"},{p:"3.2.3.1",t:"3.2.3.1 Перикардиальное окно"},{p:"3.2.3.2",t:"3.2.3.2 Кардиолиз и перикардэктомия"},{p:"3.2.3.3",t:"3.2.3.3 Перикардиоскопия и биопсия"},{p:"3.2.3.4",t:"3.2.3.4 Интраперикардиальное лечение"},{p:"3.2.3.5",t:"3.2.3.5 Эпикардиальная аблация"},{p:"4",t:"4 Медицинская реабилитация"}];
+function inline(t){return t.replace(/\*\*(.+?)\*\*/g,"<strong>$1</strong>").replace(/\*(.+?)\*/g,"<em>$1</em>")}
+function mdToHtml(text){if(!text)return '<p><em>Пересказ не готов</em></p>';var lines=text.split("\n"),html="",inList=false,listType="";
+function close(){if(inList){html+="</"+listType+">";inList=false}}
+function isTableRow(s){return /^\s*\|.*\|\s*$/.test(s)||/^\s*\|/.test(s)}
+for(var i=0;i<lines.length;i++){
+var s=lines[i].trim();
+if(!s){close();continue}
+// Таблица: собираем подряд идущие строки, начинающиеся с |
+if(isTableRow(s)){
+close();
+var rows=[];while(i<lines.length&&isTableRow(lines[i])){var rs=lines[i].trim();if(rs.replace(/[|:\-\s]/g,"")!=="")rows.push(rs);i++}i--;
+if(rows.length){
+var tbl="<table>";
+// Заголовок = первая строка, вторая — разделитель (:---), пропускаем
+var header=rows[0].replace(/^\||\|$/g,"").split("|").map(function(c){return inline(c.trim())});
+tbl+="<thead><tr>";header.forEach(function(c){tbl+="<th>"+c+"</th>"});tbl+="</tr></thead>";
+var body=rows.slice(1);
+if(body.length&&/^\s*:?-{2,}:?\s*$/.test(body[0].replace(/\|/g,"")))body=body.slice(1);
+tbl+="<tbody>";
+body.forEach(function(r){var cells=r.replace(/^\||\|$/g,"").split("|").map(function(c){return inline(c.trim())});tbl+="<tr>";cells.forEach(function(c){tbl+="<td>"+c+"</td>"});tbl+="</tr>"});
+tbl+="</tbody></table>";
+html+=tbl;
+}
+continue;
+}
+if(/^#{1,6}\s/.test(s)){close();var lvl=s.match(/^(#+)/)[1].length;html+="<h"+Math.min(lvl+2,5)+">"+inline(s.replace(/^#+\s*/,""))+"</h"+Math.min(lvl+2,5)+">"}
+else if(/^[-*]\s/.test(s)){if(!inList||listType!=="ul"){close();inList=true;listType="ul";html+="<ul>"}html+="<li>"+inline(s.replace(/^[-*]\s/,""))+"</li>"}
+else if(/^\d+[.)]\s/.test(s)){if(!inList||listType!=="ol"){close();inList=true;listType="ol";html+="<ol>"}html+="<li>"+inline(s.replace(/^\d+[.)]\s/,""))+"</li>"}
+else{close();html+="<p>"+inline(s)+"</p>"}}
+close();return html}
+function render(){var c=document.getElementById("content"),html="";
+SECTIONS.forEach(function(sec){var items=BLOCKS.filter(function(b){return b[0].indexOf(sec.p)===0});if(!items.length)return;
+html+='<div class="section"><div class="section-h"><span class="num">'+sec.p+'</span>'+sec.t+'</div>';
+items.forEach(function(b){html+='<div class="block"><div class="block-h" onclick="this.parentNode.classList.toggle(\'open\')"><span class="arrow">▶</span>'+b[1]+'<span class="badge">'+b[0]+'</span></div><div class="block-body"><div class="orig-label">Оригинал</div><div class="orig">'+mdToHtml(b[2])+'</div><div class="sum-label">Пересказ</div><div class="summary">'+mdToHtml(b[3])+'</div></div></div>'});
+html+="</div>"});
+c.innerHTML=html}
+document.getElementById("modeSwitch").addEventListener("click",function(e){var btn=e.target.closest("button");if(!btn)return;var mode=btn.dataset.mode;
+document.body.className="";document.body.classList.add("mode-"+mode);
+this.querySelectorAll("button").forEach(function(b){b.classList.toggle("active",b===btn)});
+document.querySelectorAll(".block").forEach(function(b){b.classList.add("open")})});
+render();
+</script>
+</body>
+</html>
