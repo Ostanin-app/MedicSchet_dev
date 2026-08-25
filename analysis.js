@@ -305,7 +305,10 @@ window.handleAiParse = function() {
   }
 
   // состояние загрузки
-  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span><span>Анализирую…</span>'; }
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="ai-dot loading" id="aiDot"></span><span class="ai-ico">🤖</span><span>Анализирую…</span>';
+  }
   showAiMsg('loading', 'ИИ разбирает текст…');
 
   fetch('https://functions.yandexcloud.net/d4evnu5gkvglk7oah3qi', {
@@ -401,6 +404,10 @@ window.handleAiParse = function() {
     // --- показываем карточку ответа ---
     renderAiAnswer(parsed, applied);
 
+    // точка: зелёная «готово», через 3 с вернётся в покой
+    var d = document.getElementById('aiDot');
+    if (d) { d.classList.remove('loading'); d.classList.add('done'); setTimeout(function() { d.classList.remove('done'); }, 3000); }
+
     // обновляем зависимые панели, как после обычного ввода
     if (window.autofill) autofill();
     if (window.updateAnalysisPanel) updateAnalysisPanel();
@@ -409,9 +416,11 @@ window.handleAiParse = function() {
   .catch(function(err) {
     showAiMsg('err', 'Не удалось связаться с прокси: ' + err.message +
       '\nЗапустите прокси: node server.js (папка MedicSchet-proxy).');
+    var d = document.getElementById('aiDot');
+    if (d) { d.classList.remove('loading'); d.classList.add('error'); setTimeout(function() { d.classList.remove('error'); }, 3000); }
   })
   .then(function() {
-    if (btn) { btn.disabled = false; btn.innerHTML = '<span class="ai-ico">🤖</span><span id="aiBtnLabel">Разобрать ИИ</span>'; }
+    if (btn) { btn.disabled = false; btn.innerHTML = '<span class="ai-dot" id="aiDot"></span><span class="ai-ico">🤖</span><span id="aiBtnLabel">Разобрать ИИ</span>'; }
   });
 };
 

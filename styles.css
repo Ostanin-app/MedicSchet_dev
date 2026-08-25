@@ -1908,6 +1908,29 @@ button.floating-calc.has-warnings {
 .btn-ai:disabled { background: var(--border-strong); box-shadow: none; cursor: not-allowed; opacity: .85; }
 .btn-ai .ai-ico { font-size: 15px; line-height: 1; }
 
+/* Пульсирующая точка состояния ИИ */
+.ai-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.55);
+  display: inline-block;
+  flex-shrink: 0;
+  transition: background .3s;
+}
+.ai-dot.loading {
+  background: #4ade80;
+  animation: aiPulse 1.2s ease-in-out infinite;
+}
+.ai-dot.done  { background: #4ade80; }
+.ai-dot.error { background: #f87171; }
+@keyframes aiPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(74,222,128,.5); }
+  50%      { box-shadow: 0 0 0 6px rgba(74,222,128,0); }
+}
+/* тёмная тема: точка на тёмном фоне кнопки чуть ярче */
+body.dark-theme .ai-dot { background: rgba(215,215,221,.5); }
+body.dark-theme .ai-dot.loading { background: #4ade80; }
+
 /* спиннер загрузки */
 .btn-ai .spinner {
   width: 14px; height: 14px;
