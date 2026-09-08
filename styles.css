@@ -748,6 +748,98 @@ select option {
 .result-card.risk-veryhigh .result-value, .result-card.risk-veryhigh .result-interp { color: var(--darkred-deep); }
 .result-card.risk-veryhigh .result-hint { background: var(--darkred-soft); border-left-color: var(--darkred); color: var(--darkred-deep); }
 
+/* ===== Flip-карточка: оборотная сторона «Обоснование расчёта» ===== */
+.results-grid { perspective: 1600px; }
+.flip-card {
+  perspective: 1400px;
+  cursor: pointer;
+  position: relative;
+  transition: transform .08s ease-out;
+}
+.flip-card.tilt-reset { transition: transform .45s cubic-bezier(.2,.8,.2,1); }
+.flip-front { transform: translateZ(0); }
+.flip-inner {
+  transition: transform .55s cubic-bezier(.4,0,.2,1);
+  transform-style: preserve-3d;
+  position: relative;
+}
+.flip-card.flipped .flip-inner { transform: rotateY(180deg); }
+.flip-front, .flip-back {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.flip-back {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  transform: rotateY(180deg);
+}
+.flip-back .result-card {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+.flip-back .result-card-body {
+  font-size: 12px; line-height: 1.55; color: var(--text-2);
+  flex: 1;
+}
+.flip-hint {
+  position: absolute;
+  bottom: 8px; right: 12px;
+  font-size: 10.5px;
+  color: var(--muted);
+  opacity: .75;
+  letter-spacing: .4px;
+  pointer-events: none;
+  z-index: 5;
+}
+.flip-hint-back {
+  position: static;
+  text-align: right;
+  padding: 6px 15px 10px;
+  background: var(--surface);
+}
+.flip-back .result-card-header::after { content: ""; display: none; }
+.flip-back .result-card-header.result-card-header-back {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.flip-back .flip-back-link {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  letter-spacing: .4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--bg);
+  transition: background .15s, color .15s;
+}
+.flip-back .flip-back-link:hover { color: var(--text); background: var(--border); }
+body.dark-theme .flip-back .flip-back-link { background: rgba(255,255,255,.08); }
+
+/* --- Содержимое оборота: формулировка, разделители, методы, источники --- */
+.flip-back .formula {
+  background: var(--green-soft);
+  border-left: 3px solid var(--green);
+  padding: 8px 12px;
+  border-radius: 0 8px 8px 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+.flip-back .sep {
+  display: flex; align-items: center; gap: 10px;
+  margin: 12px 0 6px;
+  color: var(--muted);
+  font-size: 10.5px; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 1px;
+}
+.flip-back .sep::after { content: ""; flex: 1; height: 1px; background: var(--border); }
+.flip-back .methods { margin: 2px 0; }
+.flip-back .methods .row { padding: 2px 0; }
+.flip-back .src { color: var(--muted); font-size: 11px; margin-top: 10px; line-height: 1.5; }
+
 .result-card.risk-neutral {
   border-color: var(--blue);
   background: linear-gradient(180deg, var(--blue-soft), var(--surface) 42%);

@@ -219,10 +219,7 @@ function buildCgComparisonHint(plansByMethod, workingMethodLabel, workingCrcl) {
   }
 
   var html =
-    '<div style="margin-bottom:6px;">' +
-      'Рабочая оценка для дозирования: <strong>' + workingMethodLabel + ' = ' + workingCrcl.toFixed(1) + ' мл/мин</strong>.' +
-    '</div>' +
-    '<div style="font-size:12px;line-height:1.55;">' +
+      '<div style="font-size:12px;line-height:1.55;">' +
       '<div style="margin-bottom:4px;">' + buildDrugLine('dabigatran', 'Дабигатран') + '</div>' +
       '<div style="margin-bottom:4px;">' + buildDrugLine('rivaroxaban', 'Ривароксабан') + '</div>' +
       '<div>' + buildDrugLine('apixaban', 'Апиксабан') + '</div>' +
@@ -2042,7 +2039,7 @@ function calculate() {
                 // Ожирение: рабочий КлКр по скорректированному весу (ABW 0.4)
                 workingCrcl = cgCrclAbw; workingMethodLabel = 'ABW 0.4'; workingMethodRu = 'скорректированный вес';
                 categoryText = 'Ожирение';
-                methodNote = 'Рабочий КлКр рассчитан по скорректированному весу (ABW 0.4): при ожирении фактический вес завышает функцию почек (Winter, 2012).';
+                methodNote = 'При ожирении фактический вес завышает функцию почек.';
                 methodBlockStyle = 'margin-top:8px;padding:8px 10px;background:var(--red-soft);border-left:3px solid var(--red);border-radius:0 6px 6px 0;font-size:12px;line-height:1.5;';
               } else {
                 // Все остальные: рабочий КлКр по фактическому весу (TBW)
@@ -2072,7 +2069,7 @@ function calculate() {
 
       var detailsParts = [];
       if (bmi !== null) detailsParts.push('ИМТ: ' + bmi.toFixed(1) + ' кг/м²');
-      detailsParts.push('Рабочий КлКр (' + workingMethodLabel + ', ' + workingMethodRu + '): ' + workingCrcl.toFixed(1) + ' мл/мин');
+      detailsParts.push('КлКр (' + workingMethodLabel + ', ' + workingMethodRu + '): ' + workingCrcl.toFixed(1) + ' мл/мин');
       detailsParts.push('КлКр (TBW, фактический вес ' + weight.toFixed(1) + ' кг): ' + cgCrclTbw.toFixed(1) + ' мл/мин');
       if (ibw !== null && cgCrclIbw !== null) {
         detailsParts.push('КлКр (IBW, идеальный вес ' + ibw.toFixed(1) + ' кг): ' + cgCrclIbw.toFixed(1) + ' мл/мин');
@@ -2130,6 +2127,43 @@ function calculate() {
       cgPart('ABW 0.4', 'ABW', cgCrclAbw);
       var cgValueHtml = cgValueParts.join('');
 
+      // Обоснование для оборотной стороны (flip)
+            var cgParts = [];
+            // 1. Формулировка
+            if (workingMethodLabel === 'ABW 0.4') {
+              cgParts.push('<div class="formula">Учитывая ожирение пациента (ИМТ ' + (bmi !== null ? bmi.toFixed(1).replace('.', ',') : '>30') +
+                '), расчёт КлКр по Кокрофту-Голту по скорректированной массе тела (ABW 0,4) является наиболее точным методом в данной клинической ситуации.</div>');
+              // 2. Почему выбран
+              cgParts.push('<div class="sep">Почему выбран этот метод</div>');
+              cgParts.push('<div>При ожирении фактический вес (TBW) завышает КлКр: жировая ткань почти не продуцирует креатинин. Скорректированный вес (ABW) точнее отражает мышечную массу и функцию почек.</div>');
+            } else {
+              cgParts.push('<div class="formula">Для расчёта КлКр по Кокрофту-Голту использован фактический вес (TBW).</div>');
+            }
+
+            // 3. Методы (этот пациент)
+            if (cgCrclTbw !== null || cgCrclIbw !== null || cgCrclAbw !== null) {
+              cgParts.push('<div class="sep">Методы (этот пациент)</div><div class="methods">');
+              if (cgCrclTbw !== null) {
+                cgParts.push('<div class="row">• TBW — фактический вес ' + weight.toFixed(1).replace('.', ',') + ' кг → ' + cgCrclTbw.toFixed(1).replace('.', ',') + ' мл/мин</div>');
+              }
+              if (cgCrclIbw !== null) {
+                cgParts.push('<div class="row">• IBW — идеальный вес ' + ibw.toFixed(1).replace('.', ',') + ' кг → ' + cgCrclIbw.toFixed(1).replace('.', ',') + ' мл/мин</div>');
+              }
+              if (isOverweightForCg && abw04 !== null && cgCrclAbw !== null) {
+                cgParts.push('<div class="row">• ABW 0,4 — скорректированный ' + abw04.toFixed(1).replace('.', ',') + ' кг → ' + cgCrclAbw.toFixed(1).replace('.', ',') + ' мл/мин</div>');
+              }
+              cgParts.push('</div>');
+              }
+
+              // 4. Расшифровка
+              cgParts.push('<div class="sep">Расшифровка</div>');
+              cgParts.push('<div>IBW — идеальный вес рассчитан по формуле Devine.<br>ABW 0,4 — скорректированный вес: IBW + 40% разницы между фактическим и идеальным весом.</div>');
+
+            // 5. Источники
+            cgParts.push('<div class="src">Источники: Winter MA, et al. Pharmacotherapy, 2012 · Brown DL, et al. Ann Pharmacother, 2013</div>');
+
+            var cgRationale = cgParts.join('');
+
       resultsHTML += makeResultCard(
         'Кокрофт-Голт',
         cgValueHtml,
@@ -2137,7 +2171,8 @@ function calculate() {
         cgRisk,
         detailsText,
         hintText,
-        'card-span-2'
+        'card-span-2',
+        cgRationale
       );
 
       setTimeout(function() {
@@ -2525,6 +2560,30 @@ function calculate() {
   updateCalcButtonWarnings(rangeWarnings);
 
   document.getElementById('resultsGrid').innerHTML = resultsHTML;
+  // flip-карточки: клик переворачивает (оборотная сторона — «Обоснование расчёта»)
+  var grid = document.getElementById('resultsGrid');
+  grid.querySelectorAll('.flip-card').forEach(function(card) {
+    card.addEventListener('click', function() { card.classList.toggle('flipped'); });
+  });
+
+  // 3D-наклон (tilt) флип-карточек за мышью — только на устройствах с hover (не мобильных)
+  if (window.matchMedia && window.matchMedia('(hover: hover)').matches) {
+    grid.querySelectorAll('.flip-card').forEach(function(card) {
+      card.addEventListener('mousemove', function(e) {
+        var rect = card.getBoundingClientRect();
+        var x = (e.clientX - rect.left) / rect.width;
+        var y = (e.clientY - rect.top) / rect.height;
+        var rotY = (x - 0.5) * 6;    // ±3°
+        var rotX = (0.5 - y) * 4;    // ±2°
+        card.classList.remove('tilt-reset');
+        card.style.transform = 'rotateX(' + rotX + 'deg) rotateY(' + rotY + 'deg)';
+      });
+      card.addEventListener('mouseleave', function() {
+        card.classList.add('tilt-reset');
+        card.style.transform = 'rotateX(0deg) rotateY(0deg)';
+      });
+    });
+  }
   document.getElementById('copyText').textContent  = copyLines.map(function(s) { return '- ' + s; }).join('\n');
   document.getElementById('results').style.display = 'block';
   document.getElementById('results').scrollIntoView({ behavior: 'smooth' });

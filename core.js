@@ -1333,9 +1333,9 @@ function checkDisclaimer() {
 // ===================================================
 //  ОТРИСОВКА КАРТОЧКИ РЕЗУЛЬТАТА
 // ===================================================
-function makeResultCard(title, value, interp, risk, details, hint, extraClass) {
+function makeResultCard(title, value, interp, risk, details, hint, extraClass, rationale) {
   var cls = extraClass ? ' ' + extraClass : '';
-  return '<div class="result-card risk-' + risk + cls + '">' +
+  var face = '<div class="result-card risk-' + risk + '">' +
     '<div class="result-card-header">' + title + '</div>' +
     '<div class="result-card-body">' +
       '<div class="result-value">' + value + '</div>' +
@@ -1344,6 +1344,21 @@ function makeResultCard(title, value, interp, risk, details, hint, extraClass) {
       (hint ? '<div class="result-hint">' + hint + '</div>' : '') +
     '</div>' +
   '</div>';
+  // Если есть обоснование — карточка двусторонняя (flip)
+  if (rationale) {
+    return '<div class="flip-card' + cls + '">' +
+      '<div class="flip-inner">' +
+        '<div class="flip-front">' + face + '</div>' +
+        '<div class="flip-back">' +
+          '<div class="result-card result-card-back">' +
+            '<div class="result-card-header result-card-header-back"><span>📋 Обоснование расчёта</span><span class="flip-back-link">⟳ Вернуться</span></div>' +
+            '<div class="result-card-body">' + rationale + '</div>' +
+          '</div>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  }
+  return face;
 }
 
 // ===================================================
