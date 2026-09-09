@@ -10,6 +10,36 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css?v=2">
+<style>
+/* ===== Модуль «Перед операцией» (periop) ===== */
+.periop-tabs{display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--border);padding:0 0 10px;margin:2px 0 12px}
+.periop-tab{border:1px solid var(--border);background:var(--surface-2);padding:7px 13px;border-radius:8px;cursor:pointer;font-weight:700;font-size:12.5px;color:var(--text-2)}
+.periop-tab.active{background:var(--primary);color:var(--on-primary);border-color:var(--primary)}
+.periop-pane{display:none}
+.periop-pane.active{display:block}
+.periop-field{display:flex;flex-direction:column;gap:4px;margin-bottom:10px;font-size:12px;color:var(--muted)}
+.periop-field b{color:var(--text);font-weight:600}
+.periop-field select,.periop-field input[type=number],.periop-field input[type=text]{width:100%;max-width:420px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--surface);color:var(--text)}
+.periop-cb{display:flex;align-items:flex-start;gap:8px;padding:5px 0;border-bottom:1px dashed var(--border);font-size:13px}
+.periop-cb input{margin-top:3px;accent-color:var(--primary)}
+.periop-hint{font-size:11px;color:var(--muted);margin-top:2px}
+.periop-sec{font-weight:800;font-size:12.5px;margin:12px 0 6px;color:var(--text)}
+.periop-row{display:flex;gap:12px;flex-wrap:wrap}
+.periop-rcri{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px dashed var(--border);font-size:13px}
+.periop-rcri input{margin:0;accent-color:var(--primary)}
+.periop-rcri .src{margin-left:auto;font-size:11px;color:var(--muted);white-space:nowrap}
+.periop-badge{display:inline-block;background:var(--primary-soft);color:var(--primary);padding:2px 9px;border-radius:20px;font-size:11.5px;font-weight:700}
+.periop-drugAction{display:none;color:var(--text-2);font-size:12px;background:var(--surface-2);border-radius:6px;padding:5px 9px;margin:2px 0 6px 26px}
+.periop-drugItem input:checked ~ .periop-drugAction{display:block}
+.periop-verdict{border-radius:10px;padding:11px 14px;margin:10px 0;font-weight:800;font-size:14.5px}
+.periop-ok{background:var(--green-soft);color:var(--green-deep)}
+.periop-caution{background:var(--orange-soft);color:var(--orange-deep)}
+.periop-defer{background:var(--red-soft);color:var(--red-deep)}
+.periop-pending{background:var(--surface-3);color:var(--text-2)}
+.periop-out{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:12.5px;line-height:1.55;white-space:pre-wrap;font-family:inherit;margin:6px 0;color:var(--text)}
+.periop-status{font-size:12px;color:var(--green-deep);min-height:16px;margin:6px 0}
+.periop-hide{display:none!important}
+</style>
 </head>
 
 <body>
@@ -393,6 +423,113 @@
           </div>
         </label>
 
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== ПЕРЕД ОПЕРАЦИЕЙ (модуль periop, режим «Поликлиника») ===== -->
+  <div class="card" id="periopBlock" style="display:none;">
+    <div class="card-header">🩺 Перед операцией <span style="font-weight:400;color:var(--muted);font-size:11.5px">консультация перед плановой операцией · AHA/ACC 2024</span></div>
+    <div class="card-body">
+      <div class="periop-tabs" id="periopTabs">
+        <button type="button" class="periop-tab active" data-tab="p_tab1">1 · Операция</button>
+        <button type="button" class="periop-tab" data-tab="p_tab2">2 · Состояние</button>
+        <button type="button" class="periop-tab" data-tab="p_tab3">3 · Риск</button>
+        <button type="button" class="periop-tab" data-tab="p_tab4">4 · Лекарства</button>
+        <button type="button" class="periop-tab" data-tab="p_tab5">5 · Заключение</button>
+      </div>
+
+      <div class="periop-pane active" id="p_tab1">
+        <div class="periop-field"><b>Тип операции</b>
+          <select id="p_opType">
+            <option value="">— выберите —</option>
+            <option value="vascular">Сосудистая (выше паховой связки)</option>
+            <option value="thoracic">Торакальная</option>
+            <option value="transplant">Трансплантация</option>
+            <option value="neuro">Нейрохирургия</option>
+            <option value="general">Общая хирургия</option>
+            <option value="ent">ЛОР</option>
+            <option value="urology">Урология</option>
+            <option value="ortho">Ортопедия</option>
+            <option value="endocrine">Эндокринные операции</option>
+            <option value="breast">Молочная железа</option>
+            <option value="gyn">Гинекология / акушерство</option>
+            <option value="unknown">Не знаю / другое</option>
+          </select>
+        </div>
+        <div class="periop-field periop-hide" id="p_intraRow"><b>Операция внутрибрюшная?</b>
+          <select id="p_opIntra"><option value="">—</option><option value="1">Да</option><option value="0">Нет</option></select>
+        </div>
+        <div class="periop-field"><b>Срочность</b>
+          <select id="p_opUrgency">
+            <option value="elective">Плановая</option>
+            <option value="timeSensitive">Time-sensitive (можно отложить до 3 мес)</option>
+            <option value="urgent">Срочная</option>
+            <option value="emergency">Экстренная</option>
+          </select>
+        </div>
+        <div class="periop-field"><b>Риск операции (MACE)</b>
+          <select id="p_opRisk"><option value="">— по категории —</option><option value="low">Низкий (&lt;1%)</option><option value="elevated">Повышенный (≥1%)</option></select>
+          <span class="periop-hint" id="p_opRiskHint"></span>
+        </div>
+      </div>
+
+      <div class="periop-pane" id="p_tab2">
+        <div class="periop-sec">Нестабильные состояния (стоп-признаки)</div>
+        <div class="periop-cb"><input type="checkbox" id="p_uAcs"><div>ОКС: нестабильная стенокардия / ИМ ≤30 дней</div></div>
+        <div class="periop-cb"><input type="checkbox" id="p_uHf"><div>Декомпенсация ХСН</div></div>
+        <div class="periop-cb"><input type="checkbox" id="p_uAsSympt"><div>Симптомный тяжёлый аортальный стеноз</div></div>
+        <div class="periop-cb"><input type="checkbox" id="p_uArrhythmia"><div>Значимая симптомная аритмия</div></div>
+        <div class="periop-cb"><input type="checkbox" id="p_uStroke"><div>Недавний инсульт/ТИА или нестабильная ЦВБ</div></div>
+        <div class="periop-sec">Особое (не «стоп», но важно)</div>
+        <div class="periop-cb"><input type="checkbox" id="p_htnSevere"><div>Тяжёлая неконтролируемая АГ ≥180/110</div></div>
+        <div class="periop-field"><b>Известный тяжёлый аортальный стеноз (без симптомов)?</b>
+          <select id="p_asKnown"><option value="">не знаю</option><option value="yes">да</option><option value="no">нет</option></select>
+        </div>
+        <div class="periop-cb"><input type="checkbox" id="p_pciEver"><div>Было ЧКВ со стентом</div></div>
+        <div class="periop-hide" id="p_pciRow" style="margin:4px 0 0 26px">
+          <div class="periop-row">
+            <div class="periop-field" style="min-width:110px"><b>Когда</b><input type="number" id="p_pciMonths" placeholder="мес назад"></div>
+            <div class="periop-field" style="min-width:190px"><b>Показание</b>
+              <select id="p_pciInd"><option value="acs">ОКС (инфаркт)</option><option value="ccd">Стабильная ИБС</option><option value="unknown">Не знаю</option></select>
+            </div>
+          </div>
+          <div class="periop-cb"><input type="checkbox" id="p_pciComplex"><div>Сложное ЧКВ (бифуркации, длинные стенты, многососудистое) или детали неизвестны</div></div>
+        </div>
+        <div class="periop-field" id="p_hba1cRow"><b>HbA1c измерялся за последние 3 месяца?</b>
+          <select id="p_hba1cRecent"><option value="yes">Да</option><option value="no">Нет / не знаю</option></select>
+        </div>
+      </div>
+
+      <div class="periop-pane" id="p_tab3">
+        <div class="periop-sec">RCRI <span class="periop-badge" id="p_rcriBadge">0 · I (низкий)</span></div>
+        <div class="periop-rcri"><input type="checkbox" id="p_rIhd" disabled><span>ИБС (инфаркт/стенокардия)</span><span class="src">авто: ИМ / сосудистое</span></div>
+        <div class="periop-rcri"><input type="checkbox" id="p_rCvd" disabled><span>ЦВБ (инсульт/ТИА)</span><span class="src">авто: инсульт / ТИА</span></div>
+        <div class="periop-rcri"><input type="checkbox" id="p_rHf" disabled><span>ХСН в анамнезе</span><span class="src">авто</span></div>
+        <div class="periop-rcri"><input type="checkbox" id="p_rDmInsulin"><span>СД на инсулине</span><span class="src">ручной</span></div>
+        <div class="periop-rcri"><input type="checkbox" id="p_rCrea" disabled><span>Креатинин ≥177 мкмоль/л</span><span class="src">авто</span></div>
+        <div class="periop-rcri"><input type="checkbox" id="p_rHigh" disabled><span>Высокорисковая операция</span><span class="src">авто: тип операции</span></div>
+        <div class="periop-hint" style="margin:6px 0">Класс: 0 — I (низкий) · 1 — II (умеренный) · 2 — III (высокий) · ≥3 — IV (очень высокий)</div>
+        <div class="periop-field"><b>Поднимается на 2 лестничных пролёта / проходит квартал? (≥4 METs)</b>
+          <select id="p_met4"><option value="">не знаю</option><option value="yes">Да</option><option value="no">Нет</option></select>
+        </div>
+      </div>
+
+      <div class="periop-pane" id="p_tab4">
+        <div class="periop-hint" style="margin-bottom:6px">Отметьте, что пациент принимает. Действие появится сразу и попадёт в заключение.</div>
+        <div id="p_drugList"></div>
+      </div>
+
+      <div class="periop-pane" id="p_tab5">
+        <div class="periop-verdict periop-pending" id="p_verdict">Заполните вкладки — вердикт появится автоматически.</div>
+        <div class="periop-row" style="align-items:center;margin:6px 0">
+          <button type="button" class="btn" id="p_copyBtn">📋 Копировать всё (история + для хирурга)</button>
+          <div class="periop-status" id="p_copyStatus"></div>
+        </div>
+        <div class="periop-sec" style="margin-top:8px">Для истории болезни</div>
+        <pre class="periop-out" id="p_historyOut"></pre>
+        <div class="periop-sec">Для хирурга / анестезиолога</div>
+        <pre class="periop-out" id="p_surgeonOut"></pre>
       </div>
     </div>
   </div>
@@ -1272,5 +1409,129 @@
 <script src="scales.js"></script>
 <script src="analysis.js"></script>
 <script src="help.js"></script>
+<script src="periop_data.js"></script>
+<script src="periop_engine.js"></script>
+<script>
+/* ===== Модуль «Перед операцией» (periop) — интерфейс ===== */
+(function () {
+  var DATA = window.PeriopData, ENGINE = window.PeriopEngine;
+  if (!DATA || !ENGINE) return;
+
+  // Вкладки
+  document.getElementById('periopTabs').addEventListener('click', function (e) {
+    var b = e.target.closest('.periop-tab'); if (!b) return;
+    document.querySelectorAll('.periop-tab').forEach(function (t) { t.classList.remove('active'); });
+    document.querySelectorAll('.periop-pane').forEach(function (p) { p.classList.remove('active'); });
+    b.classList.add('active');
+    document.getElementById(b.dataset.tab).classList.add('active');
+  });
+
+  // Список препаратов
+  var drugList = document.getElementById('p_drugList');
+  DATA.DRUGS.forEach(function (d) {
+    var div = document.createElement('div');
+    div.className = 'periop-drugItem';
+    div.innerHTML = '<div class="periop-cb"><input type="checkbox" class="p_drug" value="' + d.id + '" id="p_drug_' + d.id + '"><div>' + d.label + '</div></div>' +
+      '<div class="periop-drugAction">' + d.action + '</div>';
+    drugList.appendChild(div);
+  });
+
+  function show(el, on) { if (el) el.classList.toggle('periop-hide', !on); }
+  function bool(id) { var el = document.getElementById(id); return !!(el && el.checked); }
+  function num(id) { var el = document.getElementById(id); if (!el) return null; var v = parseFloat(el.value); return isNaN(v) ? null : v; }
+  function val(id) { var el = document.getElementById(id); return el ? el.value : ''; }
+  function yesno(id) { var v = val(id); return v === 'yes' ? true : v === 'no' ? false : null; }
+
+  var opTypeEl = document.getElementById('p_opType');
+  opTypeEl.addEventListener('change', function () {
+    var v = opTypeEl.value;
+    show(document.getElementById('p_intraRow'), v === 'general' || v === 'gyn' || v === 'transplant');
+    var hint = DATA.riskHint(v);
+    var hintEl = document.getElementById('p_opRiskHint');
+    if (hint === 'low') { hintEl.textContent = 'Категория низкого риска (1.5) — подставлен «Низкий».'; document.getElementById('p_opRisk').value = 'low'; }
+    else if (hint === 'elevated') { hintEl.textContent = 'Категория повышенного риска (1.5) — подставлен «Повышенный».'; document.getElementById('p_opRisk').value = 'elevated'; }
+    else if (v === '') { hintEl.textContent = ''; document.getElementById('p_opRisk').value = ''; }
+    else { hintEl.textContent = 'Категория промежуточного риска — итог зависит от пациента (RCRI/METs). Выберите риск вручную.'; }
+    update();
+  });
+  var pciEver = document.getElementById('p_pciEver');
+  pciEver.addEventListener('change', function () { show(document.getElementById('p_pciRow'), pciEver.checked); update(); });
+  var cbDm = document.getElementById('cb_dm');
+  cbDm.addEventListener('change', function () {
+    document.getElementById('p_rDmInsulin').disabled = !cbDm.checked;
+    if (!cbDm.checked) document.getElementById('p_rDmInsulin').checked = false;
+    update();
+  });
+  document.getElementById('p_rDmInsulin').addEventListener('change', update);
+
+  // Пересчёт при любом изменении полей модуля и общих данных
+  document.addEventListener('input', function (e) { if (e.target.closest('#periopBlock, #age, #creatinine') || isCommonCb(e.target)) update(); });
+  document.addEventListener('change', function (e) { if (e.target.closest('#periopBlock, #age, #creatinine') || isCommonCb(e.target)) update(); });
+  var COMMON_IDS = ['cb_dm', 'cb_hf', 'cb_mi', 'cb_vasc', 'cb_stroke', 'cb_tia'];
+  function isCommonCb(el) { return el && el.id && COMMON_IDS.indexOf(el.id) !== -1; }
+
+  function build() {
+    var opIntraRaw = val('p_opIntra');
+    return ENGINE.evaluate({
+      opType: val('p_opType') || 'unknown',
+      opIntraperitoneal: opIntraRaw === '1' ? true : opIntraRaw === '0' ? false : null,
+      opUrgency: val('p_opUrgency') || 'elective',
+      opRisk: val('p_opRisk') || null,
+      unstable: { acs: bool('p_uAcs'), hf: bool('p_uHf'), asSympt: bool('p_uAsSympt'), arrhythmia: bool('p_uArrhythmia'), stroke: bool('p_uStroke') },
+      htnSevere: bool('p_htnSevere'),
+      asKnown: yesno('p_asKnown'),
+      pci: { ever: bool('p_pciEver'), months: num('p_pciMonths'), indication: val('p_pciInd') || 'unknown', complex: bool('p_pciComplex') },
+      rcri: { ihd: bool('p_rIhd'), cvd: bool('p_rCvd'), hf: bool('p_rHf'), dmInsulin: bool('p_rDmInsulin'), crea177: bool('p_rCrea') },
+      met4: yesno('p_met4'),
+      age: num('age'),
+      dm: bool('cb_dm'),
+      hba1c: { recent: bool('cb_dm') ? yesno('p_hba1cRecent') : null, value: null },
+      drugs: Array.prototype.slice.call(document.querySelectorAll('.p_drug:checked')).map(function (c) { return c.value; })
+    });
+  }
+
+  function update() {
+    var crea = num('creatinine');
+    document.getElementById('p_rIhd').checked = bool('cb_mi') || bool('cb_vasc');
+    document.getElementById('p_rCvd').checked = bool('cb_stroke') || bool('cb_tia');
+    document.getElementById('p_rHf').checked = bool('cb_hf');
+    document.getElementById('p_rCrea').checked = (crea !== null && crea >= 177);
+    var e = build();
+    var high = e.rcri.items.filter(function (i) { return i.code === 'highRiskSurg'; })[0];
+    document.getElementById('p_rHigh').checked = high.active;
+    document.getElementById('p_rcriBadge').textContent = e.rcri.points + ' · ' + e.rcri.classLabel;
+    show(document.getElementById('p_hba1cRow'), bool('cb_dm'));
+    render(e);
+  }
+
+  function render(e) {
+    var v = document.getElementById('p_verdict');
+    v.className = 'periop-verdict periop-' + e.verdict.level;
+    v.textContent = e.verdict.title;
+    document.getElementById('p_historyOut').textContent = e.historyText;
+    document.getElementById('p_surgeonOut').textContent = e.surgeonText;
+  }
+
+  document.getElementById('p_copyBtn').addEventListener('click', function () {
+    var txt = 'Для истории болезни:\n' + document.getElementById('p_historyOut').textContent +
+      '\n\nДля хирурга / анестезиолога:\n' + document.getElementById('p_surgeonOut').textContent;
+    var st = document.getElementById('p_copyStatus');
+    function done(msg) { st.textContent = msg; }
+    function fallback() {
+      var ta = document.createElement('textarea');
+      ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); done('Скопировано.'); }
+      catch (err) { done('Браузер запретил автокопирование — текст выделен, нажмите Ctrl+C.'); }
+      document.body.removeChild(ta);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(txt).then(function () { done('Скопировано.'); }, fallback);
+    } else fallback();
+  });
+
+  update();
+})();
+</script>
 </body>
 </html>

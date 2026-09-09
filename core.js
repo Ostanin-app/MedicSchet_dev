@@ -483,6 +483,10 @@ function applyMode() {
     b.style.display = (mode === 'outpatient') ? '' : 'none';
   });
 
+  // Модуль «Перед операцией» — только в поликлинике
+  var periopBlock = document.getElementById('periopBlock');
+  if (periopBlock) periopBlock.style.display = (mode === 'outpatient') ? '' : 'none';
+
   // 6. Видимость полей и панель анализа
   updateFieldVisibility();
   updateGroupButtonsUI();
