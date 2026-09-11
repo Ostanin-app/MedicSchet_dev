@@ -19,7 +19,8 @@ function saveUndoState() {
   var inputIds = [
     'age','height','weight','sbp','hr','creatinine','hb','hct','plt','wbc',
     'pesi_rr','pesi_temp','pesi_spo2','emrPaste','ck_total','ck_mb',
-    'na_measured','glucose','potassium','magnesium','smoking','tchol','hdl','tg','ldl','hba1c','dm_age'
+    'na_measured','glucose','potassium','magnesium','smoking','tchol','hdl','tg','ldl','hba1c','dm_age',
+    'p_pciDate','p_pciMonths'
   ];
   inputIds.forEach(function(id) {
     var el = document.getElementById(id);
@@ -65,7 +66,9 @@ function saveUndoState() {
     'geneva_leg_pain','geneva_hemoptysis','geneva_hr75','geneva_hr95',
     'geneva_dvt_signs',
     'precise_bleed',
-    'score2_2events','dm_age20'
+    'score2_2events','dm_age20',
+    'p_opType','p_opIntra','p_opUrgency','p_opRisk','p_asKnown','p_pciInd','p_met4','p_hba1cRecent',
+    'p_uAcs','p_uHf','p_uAsSympt','p_uArrhythmia','p_uStroke','p_htnSevere','p_pciEver','p_pciGE12','p_pciComplex','p_rDmInsulin'
   ];
 
   allScaleCbIds.forEach(function(id) {
@@ -77,6 +80,10 @@ function saveUndoState() {
         state[id] = el.value;
       }
     }
+  });
+  // Periop drugs (динамический список)
+  document.querySelectorAll('.p_drug').forEach(function(el){
+    if (el.id) state[el.id] = el.checked;
   });
 
   // Авто-состояние приёмников онкологии (pesi_cancer/cap_cancer/geneva_cancer)
@@ -113,7 +120,8 @@ function performUndo() {
   var inputIds = [
     'age','height','weight','sbp','hr','creatinine','hb','hct','plt','wbc',
     'pesi_rr','pesi_temp','pesi_spo2','emrPaste','ck_total','ck_mb',
-    'na_measured','glucose','potassium','magnesium','smoking','tchol','hdl','tg','ldl','hba1c','dm_age'
+    'na_measured','glucose','potassium','magnesium','smoking','tchol','hdl','tg','ldl','hba1c','dm_age',
+    'p_pciDate','p_pciMonths'
   ];
   inputIds.forEach(function(id) {
     var el = document.getElementById(id);
@@ -167,7 +175,9 @@ function performUndo() {
     'geneva_leg_pain','geneva_hemoptysis','geneva_hr75','geneva_hr95',
     'geneva_dvt_signs',
     'precise_bleed',
-    'score2_2events','dm_age20'
+    'score2_2events','dm_age20',
+    'p_opType','p_opIntra','p_opUrgency','p_opRisk','p_asKnown','p_pciInd','p_met4','p_hba1cRecent',
+    'p_uAcs','p_uHf','p_uAsSympt','p_uArrhythmia','p_uStroke','p_htnSevere','p_pciEver','p_pciGE12','p_pciComplex','p_rDmInsulin'
   ];
 
   allScaleCbIds.forEach(function(id) {
@@ -179,6 +189,9 @@ function performUndo() {
         el.value = prevState[id];
       }
     }
+  });
+  document.querySelectorAll('.p_drug').forEach(function(el){
+    if (el.id && prevState.hasOwnProperty(el.id)) el.checked = prevState[el.id];
   });
 
   // Восстанавливаем авто-состояние приёмников онкологии и ХОБЛ; классы и
@@ -196,6 +209,11 @@ function performUndo() {
 
   autofill();
   updateFieldVisibility();
+  if (typeof window.periopUpdate === 'function') try{ window.periopUpdate(); }catch(e){}
+  else {
+    if (typeof window.periopSyncPci === 'function') try{ window.periopSyncPci(); }catch(e){}
+    if (typeof window.periopSyncDm === 'function') try{ window.periopSyncDm(); }catch(e){}
+  }
   updateAnalysisPanel();
 
   // После отмены обновляем подсветки: снимаем красные (от старого
@@ -252,7 +270,8 @@ function initUndoTracking() {
   var inputFields = [
     'age','height','weight','sbp','hr','creatinine','hb','hct','plt','wbc',
     'pesi_rr','pesi_temp','pesi_spo2','emrPaste','ck_total','ck_mb',
-    'na_measured','glucose','potassium','magnesium','smoking','tchol','hdl','tg','ldl','hba1c','dm_age'
+    'na_measured','glucose','potassium','magnesium','smoking','tchol','hdl','tg','ldl','hba1c','dm_age',
+    'p_pciDate','p_pciMonths'
   ];
   inputFields.forEach(function(id) {
     var el = document.getElementById(id);
@@ -294,7 +313,9 @@ function initUndoTracking() {
     'geneva_leg_pain','geneva_hemoptysis','geneva_hr75','geneva_hr95',
     'geneva_dvt_signs',
     'precise_bleed',
-    'score2_2events','dm_age20'
+    'score2_2events','dm_age20',
+    'p_opType','p_opIntra','p_opUrgency','p_opRisk','p_asKnown','p_pciInd','p_met4','p_hba1cRecent',
+    'p_uAcs','p_uHf','p_uAsSympt','p_uArrhythmia','p_uStroke','p_htnSevere','p_pciEver','p_pciGE12','p_pciComplex','p_rDmInsulin'
   ];
 
   allTrackedIds.forEach(function(id) {
@@ -305,6 +326,11 @@ function initUndoTracking() {
       });
     }
   });
+  document.querySelectorAll('.p_drug').forEach(function(el){
+    el.addEventListener('click', function(){ saveUndoState(); });
+  });
+  var _pciDateEl = document.getElementById('p_pciDate');
+  if (_pciDateEl) _pciDateEl.addEventListener('change', function(){ saveUndoState(); });
 
   document.querySelectorAll('.sex-btn').forEach(function(btn) {
     btn.addEventListener('click', function() {
@@ -534,7 +560,8 @@ function initModeSwitch() {
 // ===================================================
 function resetAllFields() {
   var inputIds = ['age','height','weight','sbp','hr','creatinine','hb','hct','plt','wbc',
-    'pesi_rr','pesi_temp','pesi_spo2','ck_total','ck_mb','na_measured','glucose','potassium','magnesium','smoking','tchol','hdl','tg','ldl','hba1c','dm_age'];
+    'pesi_rr','pesi_temp','pesi_spo2','ck_total','ck_mb','na_measured','glucose','potassium','magnesium','smoking','tchol','hdl','tg','ldl','hba1c','dm_age',
+    'p_pciDate','p_pciMonths'];
   inputIds.forEach(function(id) {
     var el = document.getElementById(id);
     if (el) el.value = '';
@@ -575,12 +602,23 @@ function resetAllFields() {
     'geneva_leg_pain','geneva_hemoptysis','geneva_hr75','geneva_hr95',
     'geneva_dvt_signs',
     'precise_bleed',
-    'score2_2events','dm_age20'
+    'score2_2events','dm_age20',
+    'p_uAcs','p_uHf','p_uAsSympt','p_uArrhythmia','p_uStroke','p_htnSevere','p_pciEver','p_pciGE12','p_pciComplex','p_rDmInsulin'
   ];
   scaleCbs.forEach(function(id) {
     var el = document.getElementById(id);
     if (el) el.checked = false;
   });
+  // Periop selects
+  ['p_opType','p_opIntra','p_opUrgency','p_opRisk','p_asKnown','p_pciInd','p_met4','p_hba1cRecent'].forEach(function(id){
+    var el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  // Periop drugs
+  document.querySelectorAll('.p_drug').forEach(function(el){ el.checked = false; });
+  // Сброс видимости ЧКВ и предупреждения диабета
+  if (typeof window.periopSyncPci === 'function') try{ window.periopSyncPci(); }catch(e){}
+  if (typeof window.periopSyncDm === 'function') try{ window.periopSyncDm(); }catch(e){}
 
   var emrTextarea = document.getElementById('emrPaste');
   if (emrTextarea) emrTextarea.value = '';
@@ -1538,7 +1576,7 @@ var stateSaveTimer = null;
 function collectAppState() {
   var fields = {};
   var els = document.querySelectorAll(
-    'input[type="text"], input[type="number"], input[type="hidden"], input[type="checkbox"], ' +
+    'input[type="text"], input[type="number"], input[type="date"], input[type="hidden"], input[type="checkbox"], ' +
     'input[type="radio"]:checked, select, textarea'
   );
   for (var i = 0; i < els.length; i++) {
@@ -1653,6 +1691,12 @@ function restoreAppState() {
     var toggleEl = document.querySelector('#toggle_' + name + ' input');
     if (toggleEl) toggleScale(name, toggleEl);
   });
+  // Periop: восстанавливаем видимость ЧКВ и предупреждение диабета
+  if (typeof window.periopUpdate === 'function') try{ window.periopUpdate(); }catch(e){}
+  else {
+    if (typeof window.periopSyncPci === 'function') try{ window.periopSyncPci(); }catch(e){}
+    if (typeof window.periopSyncDm === 'function') try{ window.periopSyncDm(); }catch(e){}
+  }
 }
 
 // Полный сброс: очищает сохранение, все поля, галочки, списки,

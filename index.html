@@ -19,7 +19,7 @@
 .periop-pane.active{display:block}
 .periop-field{display:flex;flex-direction:column;gap:4px;margin-bottom:10px;font-size:12px;color:var(--muted)}
 .periop-field b{color:var(--text);font-weight:600}
-.periop-field select,.periop-field input[type=number],.periop-field input[type=text]{width:100%;max-width:420px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--surface);color:var(--text)}
+.periop-field select,.periop-field input[type=number],.periop-field input[type=text],.periop-field input[type=date]{width:100%;max-width:420px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--surface);color:var(--text)}
 .periop-cb{display:flex;align-items:flex-start;gap:8px;padding:5px 0;border-bottom:1px dashed var(--border);font-size:13px}
 .periop-cb input{margin-top:3px;accent-color:var(--primary)}
 .periop-hint{font-size:11px;color:var(--muted);margin-top:2px}
@@ -498,12 +498,14 @@
         </div>
         <div class="periop-cb"><input type="checkbox" id="p_pciEver"><div>Было ЧКВ со стентом</div></div>
         <div class="periop-hide" id="p_pciRow" style="margin:4px 0 0 26px">
-          <div class="periop-row">
-            <div class="periop-field" style="min-width:110px"><b>Когда</b><input type="number" id="p_pciMonths" placeholder="мес назад"></div>
+          <div class="periop-row" style="align-items:flex-end">
+            <div class="periop-field" style="min-width:150px" id="p_pciDateField"><b>Дата ЧКВ</b><input type="date" id="p_pciDate"><span class="periop-hint" id="p_pciDateHint" style="display:none;color:var(--orange-deep)"></span> <span class="warning-icon" id="p_pciDateWarn" style="display:none;cursor:help;">⚠️</span></div>
+            <div class="periop-field" style="min-width:110px;justify-content:center" id="p_pciGE12Field"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600"><input type="checkbox" id="p_pciGE12"> ≥12 мес</label><span class="periop-hint">если давно</span></div>
             <div class="periop-field" style="min-width:190px"><b>Показание</b>
               <select id="p_pciInd"><option value="acs">ОКС (инфаркт)</option><option value="ccd">Стабильная ИБС</option><option value="unknown">Не знаю</option></select>
             </div>
           </div>
+          <input type="hidden" id="p_pciMonths" value="">
           <div class="periop-cb"><input type="checkbox" id="p_pciComplex"><div>Сложное ЧКВ (бифуркации, длинные стенты, многососудистое) или детали неизвестны</div></div>
         </div>
         <div class="periop-field" id="p_hba1cRow"><b>HbA1c измерялся за последние 3 месяца?</b>
@@ -516,7 +518,7 @@
         <div class="periop-rcri"><input type="checkbox" id="p_rIhd" disabled><span>ИБС (инфаркт/стенокардия)</span><span class="src">авто: ИМ / сосудистое</span></div>
         <div class="periop-rcri"><input type="checkbox" id="p_rCvd" disabled><span>ЦВБ (инсульт/ТИА)</span><span class="src">авто: инсульт / ТИА</span></div>
         <div class="periop-rcri"><input type="checkbox" id="p_rHf" disabled><span>ХСН в анамнезе</span><span class="src">авто</span></div>
-        <div class="periop-rcri"><input type="checkbox" id="p_rDmInsulin"><span>СД на инсулине <span class="info-icon" id="p_tipDm" style="cursor:help;font-size:14px;opacity:.65;vertical-align:middle">ⓘ</span></span><span class="src">ручной</span></div>
+        <div class="periop-rcri"><input type="checkbox" id="p_rDmInsulin"><span>СД на инсулине <span class="info-icon" id="p_tipDm" style="cursor:help;font-size:14px;opacity:.65;vertical-align:middle">ⓘ</span> <span class="warning-icon" id="p_dmWarn" style="display:none;cursor:help;">⚠️</span></span><span class="src">ручной</span></div>
         <div class="periop-rcri"><input type="checkbox" id="p_rCrea" disabled><span>Креатинин ≥177 мкмоль/л</span><span class="src">авто</span></div>
         <div class="periop-rcri"><input type="checkbox" id="p_rHigh" disabled><span>Высокорисковая операция</span><span class="src">авто: тип операции</span></div>
         <div class="periop-hint" style="margin:6px 0">Класс: 0 — I (низкий) · 1 — II (умеренный) · 2 — III (высокий) · ≥3 — IV (очень высокий)</div>
@@ -1498,6 +1500,72 @@
   function val(id) { var el = document.getElementById(id); return el ? el.value : ''; }
   function yesno(id) { var v = val(id); return v === 'yes' ? true : v === 'no' ? false : null; }
 
+  function monthsFromDate(dateStr) {
+    if (!dateStr) return null;
+    var d = new Date(dateStr);
+    if (isNaN(d.getTime())) return null;
+    var now = new Date();
+    d.setHours(0,0,0,0); now.setHours(0,0,0,0);
+    if (d > now) return -1;
+    var months = (now.getFullYear() - d.getFullYear()) * 12 + (now.getMonth() - d.getMonth());
+    if (now.getDate() < d.getDate()) months--;
+    if (months < 0) months = 0;
+    return months;
+  }
+  function getPciMonths() {
+    if (bool('p_pciGE12')) return 13;
+    var dateVal = val('p_pciDate');
+    if (dateVal) {
+      var m = monthsFromDate(dateVal);
+      if (m === -1) return -1;
+      if (m !== null) return m;
+    }
+    var n = num('p_pciMonths');
+    if (n !== null && !isNaN(n)) return n;
+    return null;
+  }
+  function syncPciVisibility() {
+    var hasDate = !!val('p_pciDate');
+    var ge12 = bool('p_pciGE12');
+    var dateField = document.getElementById('p_pciDateField');
+    var ge12Field = document.getElementById('p_pciGE12Field');
+    if (ge12) {
+      if (dateField) dateField.classList.add('periop-hide');
+      if (ge12Field) ge12Field.classList.remove('periop-hide');
+    } else if (hasDate) {
+      if (ge12Field) ge12Field.classList.add('periop-hide');
+      if (dateField) dateField.classList.remove('periop-hide');
+    } else {
+      if (dateField) dateField.classList.remove('periop-hide');
+      if (ge12Field) ge12Field.classList.remove('periop-hide');
+    }
+    var warn = document.getElementById('p_pciDateWarn');
+    var hint = document.getElementById('p_pciDateHint');
+    var dateVal = val('p_pciDate');
+    if (dateVal && monthsFromDate(dateVal) === -1) {
+      if (warn) { warn.style.display = 'inline'; if (window.setupTooltipTrigger) window.setupTooltipTrigger(warn, 'Дата ЧКВ в будущем — проверьте правильность. Для расчета сейчас используется 0 мес.'); }
+      if (hint) { hint.textContent = 'Дата в будущем — проверьте'; hint.style.display = 'inline'; }
+    } else {
+      if (warn) warn.style.display = 'none';
+      if (hint) hint.style.display = 'none';
+    }
+  }
+  function syncDmWarning() {
+    var warn = document.getElementById('p_dmWarn');
+    if (!warn) return;
+    var dm = bool('cb_dm');
+    var dmIns = bool('p_rDmInsulin');
+    if (dm && !dmIns) {
+      warn.style.display = 'inline';
+      if (window.setupTooltipTrigger) window.setupTooltipTrigger(warn, 'Отмечен сахарный диабет в общих данных — уточните, на инсулине ли пациент. Если да — отметьте этот пункт (1 балл RCRI). Если только на таблетках — оставьте пустым.');
+    } else {
+      warn.style.display = 'none';
+    }
+  }
+  function escapeHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
   var opTypeEl = document.getElementById('p_opType');
   opTypeEl.addEventListener('change', function () {
     var v = opTypeEl.value;
@@ -1510,25 +1578,70 @@
     else if (v === '') { hintEl.textContent = ''; document.getElementById('p_opRisk').value = ''; }
     else { hintEl.textContent = 'Категория промежуточного риска — итог зависит от пациента (RCRI/METs). Выберите риск вручную.'; }
     update();
+    if (typeof scheduleStateSave === 'function') scheduleStateSave();
   });
   var pciEver = document.getElementById('p_pciEver');
-  pciEver.addEventListener('change', function () { show(document.getElementById('p_pciRow'), pciEver.checked); update(); });
+  pciEver.addEventListener('change', function () { show(document.getElementById('p_pciRow'), pciEver.checked); syncPciVisibility(); update(); if (typeof scheduleStateSave === 'function') scheduleStateSave(); });
   var cbDm = document.getElementById('cb_dm');
   cbDm.addEventListener('change', function () {
-    document.getElementById('p_rDmInsulin').disabled = !cbDm.checked;
-    if (!cbDm.checked) document.getElementById('p_rDmInsulin').checked = false;
+    var rDm = document.getElementById('p_rDmInsulin');
+    if (!cbDm.checked) {
+      rDm.checked = false;
+      rDm.disabled = true;
+    } else {
+      rDm.disabled = false;
+    }
+    syncDmWarning();
     update();
+    if (typeof scheduleStateSave === 'function') scheduleStateSave();
   });
-  document.getElementById('p_rDmInsulin').addEventListener('change', update);
+  var rDmIns = document.getElementById('p_rDmInsulin');
+  rDmIns.addEventListener('change', function () {
+    if (rDmIns.checked && !cbDm.checked) {
+      cbDm.checked = true;
+      rDmIns.disabled = false;
+      if (typeof flashField === 'function') flashField(cbDm);
+      if (typeof autofill === 'function') autofill();
+      if (typeof updateFieldVisibility === 'function') updateFieldVisibility();
+    }
+    syncDmWarning();
+    update();
+    if (typeof scheduleStateSave === 'function') scheduleStateSave();
+    if (typeof saveUndoState === 'function') saveUndoState();
+  });
+  var pciDateEl = document.getElementById('p_pciDate');
+  var pciGE12El = document.getElementById('p_pciGE12');
+  if (pciDateEl) {
+    pciDateEl.addEventListener('input', function () {
+      if (pciDateEl.value) pciGE12El.checked = false;
+      syncPciVisibility(); update(); if (typeof scheduleStateSave === 'function') scheduleStateSave();
+    });
+    pciDateEl.addEventListener('change', function () {
+      if (pciDateEl.value) pciGE12El.checked = false;
+      var oldMonths = document.getElementById('p_pciMonths'); if (oldMonths) oldMonths.value = '';
+      syncPciVisibility(); update(); if (typeof scheduleStateSave === 'function') scheduleStateSave(); if (typeof saveUndoState === 'function') saveUndoState();
+    });
+  }
+  if (pciGE12El) {
+    pciGE12El.addEventListener('change', function () {
+      if (pciGE12El.checked) {
+        pciDateEl.value = '';
+        var oldMonths = document.getElementById('p_pciMonths'); if (oldMonths) oldMonths.value = '';
+      }
+      syncPciVisibility(); update(); if (typeof scheduleStateSave === 'function') scheduleStateSave(); if (typeof saveUndoState === 'function') saveUndoState();
+    });
+  }
 
   // Пересчёт при любом изменении полей модуля и общих данных
-  document.addEventListener('input', function (e) { if (e.target.closest('#periopBlock, #age, #creatinine') || isCommonCb(e.target)) update(); });
-  document.addEventListener('change', function (e) { if (e.target.closest('#periopBlock, #age, #creatinine') || isCommonCb(e.target)) update(); });
+  document.addEventListener('input', function (e) { if (e.target.closest('#periopBlock, #age, #creatinine') || isCommonCb(e.target)) { syncDmWarning(); syncPciVisibility(); update(); } });
+  document.addEventListener('change', function (e) { if (e.target.closest('#periopBlock, #age, #creatinine') || isCommonCb(e.target)) { syncDmWarning(); syncPciVisibility(); update(); } });
   var COMMON_IDS = ['cb_dm', 'cb_hf', 'cb_mi', 'cb_vasc', 'cb_stroke', 'cb_tia'];
   function isCommonCb(el) { return el && el.id && COMMON_IDS.indexOf(el.id) !== -1; }
 
   function build() {
     var opIntraRaw = val('p_opIntra');
+    var pciMonthsVal = getPciMonths();
+    if (pciMonthsVal === -1) pciMonthsVal = 0;
     return ENGINE.evaluate({
       opType: val('p_opType') || 'unknown',
       opIntraperitoneal: opIntraRaw === '1' ? true : opIntraRaw === '0' ? false : null,
@@ -1537,7 +1650,7 @@
       unstable: { acs: bool('p_uAcs'), hf: bool('p_uHf'), asSympt: bool('p_uAsSympt'), arrhythmia: bool('p_uArrhythmia'), stroke: bool('p_uStroke') },
       htnSevere: bool('p_htnSevere'),
       asKnown: yesno('p_asKnown'),
-      pci: { ever: bool('p_pciEver'), months: num('p_pciMonths'), indication: val('p_pciInd') || 'unknown', complex: bool('p_pciComplex') },
+      pci: { ever: bool('p_pciEver'), months: pciMonthsVal, indication: val('p_pciInd') || 'unknown', complex: bool('p_pciComplex') },
       rcri: { ihd: bool('p_rIhd'), cvd: bool('p_rCvd'), hf: bool('p_rHf'), dmInsulin: bool('p_rDmInsulin'), crea177: bool('p_rCrea') },
       met4: yesno('p_met4'),
       age: num('age'),
@@ -1553,6 +1666,13 @@
     document.getElementById('p_rCvd').checked = bool('cb_stroke') || bool('cb_tia');
     document.getElementById('p_rHf').checked = bool('cb_hf');
     document.getElementById('p_rCrea').checked = (crea !== null && crea >= 177);
+    var rDm = document.getElementById('p_rDmInsulin');
+    if (rDm) {
+      if (!bool('cb_dm') && !rDm.checked) rDm.disabled = true;
+      else rDm.disabled = false;
+    }
+    syncDmWarning();
+    syncPciVisibility();
     var e = build();
     var high = e.rcri.items.filter(function (i) { return i.code === 'highRiskSurg'; })[0];
     document.getElementById('p_rHigh').checked = high.active;
@@ -1566,14 +1686,22 @@
     v.className = 'periop-verdict periop-' + e.verdict.level;
     v.textContent = e.verdict.title;
     document.getElementById('p_historyOut').textContent = e.historyText;
-    document.getElementById('p_surgeonOut').textContent = e.surgeonText;
+    var surgeonOut = document.getElementById('p_surgeonOut');
+    var surgeonHtml = escapeHtml(e.surgeonText);
+    var urgency = val('p_opUrgency');
+    if ((urgency === 'urgent' || urgency === 'emergency') && e.stent && e.stent.note) {
+      var noteEsc = escapeHtml(e.stent.note);
+      surgeonHtml = surgeonHtml.replace(noteEsc, '<strong>⚠️ ' + noteEsc + '</strong>');
+    }
+    surgeonOut.innerHTML = surgeonHtml;
   }
 
   document.getElementById('p_copyBtn').addEventListener('click', function () {
-    var txt = 'Для истории болезни:\n' + document.getElementById('p_historyOut').textContent +
-      '\n\nДля хирурга / анестезиолога:\n' + document.getElementById('p_surgeonOut').textContent;
+    var historyText = document.getElementById('p_historyOut').textContent;
+    var surgeonText = document.getElementById('p_surgeonOut').textContent;
+    var txt = 'Для истории болезни:\n' + historyText + '\n\nДля хирурга / анестезиолога:\n' + surgeonText;
     var st = document.getElementById('p_copyStatus');
-    function done(msg) { st.textContent = msg; }
+    function done(msg) { st.textContent = msg; setTimeout(function(){ st.textContent=''; }, 3000); }
     function fallback() {
       var ta = document.createElement('textarea');
       ta.value = txt; ta.style.position = 'fixed'; ta.style.opacity = '0';
@@ -1607,6 +1735,13 @@
     });
   }
 
+  window.periopUpdate = update;
+  window.periopBuild = build;
+  window.periopSyncPci = syncPciVisibility;
+  window.periopSyncDm = syncDmWarning;
+
+  syncPciVisibility();
+  syncDmWarning();
   update();
 })();
 </script>
