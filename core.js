@@ -452,6 +452,40 @@ function saveMode(mode) {
   try { localStorage.setItem(MODE_STORAGE_KEY, mode); } catch (e) {}
 }
 
+var PERIOP_VISIBLE_KEY = 'medicschet_periop_visible';
+function getPeriopVisible() {
+  try {
+    var v = localStorage.getItem(PERIOP_VISIBLE_KEY);
+    if (v === '0' || v === 'false') return false;
+    if (v === '1' || v === 'true') return true;
+  } catch (e) {}
+  return true;
+}
+function savePeriopVisible(v) {
+  try { localStorage.setItem(PERIOP_VISIBLE_KEY, v ? '1' : '0'); } catch (e) {}
+}
+function togglePeriopBlock() {
+  var block = document.getElementById('periopBlock');
+  var btn = document.getElementById('periopGroupBtn');
+  if (!block || !btn) return;
+  // Переключаем только в поликлинике — в стационаре блок всегда скрыт
+  if (getCurrentMode() !== 'outpatient') {
+    saveCurrentModeScales();
+    saveMode('outpatient');
+    savePeriopVisible(true);
+    applyMode();
+    clearResultsForModeChange('outpatient');
+    if (block) block.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return;
+  }
+  var nowVisible = block.style.display !== 'none';
+  var nextVisible = !nowVisible;
+  block.style.display = nextVisible ? '' : 'none';
+  btn.classList.toggle('active', nextVisible);
+  savePeriopVisible(nextVisible);
+  if (nextVisible) block.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 // Применяет текущий режим ко всей странице:
 // 1. подсвечивает нужную кнопку переключателя;
 // 2. показывает в селекторе только шкалы текущего режима;
@@ -509,9 +543,17 @@ function applyMode() {
     b.style.display = (mode === 'outpatient') ? '' : 'none';
   });
 
-  // Модуль «Перед операцией» — только в поликлинике
+  // Модуль «Перед операцией» — только в поликлинике, управляется кнопкой 🩺
   var periopBlock = document.getElementById('periopBlock');
-  if (periopBlock) periopBlock.style.display = (mode === 'outpatient') ? '' : 'none';
+  var periopBtn = document.getElementById('periopGroupBtn');
+  var periopVisible = getPeriopVisible();
+  if (mode === 'outpatient') {
+    if (periopBlock) periopBlock.style.display = periopVisible ? '' : 'none';
+    if (periopBtn) periopBtn.classList.toggle('active', periopVisible);
+  } else {
+    if (periopBlock) periopBlock.style.display = 'none';
+    if (periopBtn) periopBtn.classList.remove('active');
+  }
 
   // 6. Видимость полей и панель анализа
   updateFieldVisibility();
@@ -552,6 +594,8 @@ function initModeSwitch() {
       clearResultsForModeChange(mode);
     });
   });
+  var periopBtn = document.getElementById('periopGroupBtn');
+  if (periopBtn) periopBtn.addEventListener('click', togglePeriopBlock);
   applyMode();
 }
 
@@ -1709,6 +1753,7 @@ function resetAllData() {
   try { localStorage.removeItem(APP_STATE_KEY); } catch (e) {}
   // Сбрасываем и память выбранных шкал обоих режимов
   try { localStorage.removeItem(MODE_SCALES_STORAGE_KEY); } catch (e) {}
+  try { localStorage.removeItem(PERIOP_VISIBLE_KEY); } catch (e) {}
 
   resetAllFields();
 
