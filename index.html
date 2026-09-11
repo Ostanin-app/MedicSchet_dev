@@ -1587,10 +1587,8 @@
     var rDm = document.getElementById('p_rDmInsulin');
     if (!cbDm.checked) {
       rDm.checked = false;
-      rDm.disabled = true;
-    } else {
-      rDm.disabled = false;
     }
+    if (rDm) rDm.disabled = false;
     syncDmWarning();
     update();
     if (typeof scheduleStateSave === 'function') scheduleStateSave();
@@ -1667,10 +1665,8 @@
     document.getElementById('p_rHf').checked = bool('cb_hf');
     document.getElementById('p_rCrea').checked = (crea !== null && crea >= 177);
     var rDm = document.getElementById('p_rDmInsulin');
-    if (rDm) {
-      if (!bool('cb_dm') && !rDm.checked) rDm.disabled = true;
-      else rDm.disabled = false;
-    }
+    if (rDm) rDm.disabled = false;
+    show(document.getElementById('p_pciRow'), bool('p_pciEver'));
     syncDmWarning();
     syncPciVisibility();
     var e = build();

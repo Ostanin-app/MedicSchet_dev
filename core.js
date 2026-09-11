@@ -617,8 +617,12 @@ function resetAllFields() {
   // Periop drugs
   document.querySelectorAll('.p_drug').forEach(function(el){ el.checked = false; });
   // Сброс видимости ЧКВ и предупреждения диабета
-  if (typeof window.periopSyncPci === 'function') try{ window.periopSyncPci(); }catch(e){}
-  if (typeof window.periopSyncDm === 'function') try{ window.periopSyncDm(); }catch(e){}
+  if (typeof window.periopUpdate === 'function') try{ window.periopUpdate(); }catch(e){
+    if (typeof window.periopSyncPci === 'function') try{ window.periopSyncPci(); }catch(e2){}
+    if (typeof window.periopSyncDm === 'function') try{ window.periopSyncDm(); }catch(e2){}
+    var _pciRow = document.getElementById('p_pciRow');
+    if (_pciRow) _pciRow.classList.add('periop-hide');
+  }
 
   var emrTextarea = document.getElementById('emrPaste');
   if (emrTextarea) emrTextarea.value = '';
