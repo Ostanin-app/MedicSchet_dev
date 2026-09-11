@@ -303,23 +303,96 @@ function graceRiskLabel(score) {
 }
 
 // ===================================================
-//  GRACE 2.0
+//  GRACE 2.0 (балльная система, MDCalc / Fox 2014)
 // ===================================================
-function calcGRACE2_6month(age, hr, sbp, creatUmol, killip, arrest, stDeviation, enzymes) {
+function calcGRACE2(age, hr, sbp, creatUmol, killip, arrest, stDeviation, enzymes) {
   var crMg = creatUmol / 88.4;
 
-  var xb = -7.7035
-           + (0.0531 * age)
-           + (0.0087 * hr)
-           - (0.0168 * sbp)
-           + (0.1823 * crMg)
-           + (0.6931 * killip)
-           + (1.4586 * (arrest ? 1 : 0))
-           + (0.4700 * (stDeviation ? 1 : 0))
-           + (0.8755 * (enzymes ? 1 : 0));
+  // 1. Возраст (баллы)
+  var ageFactor;
+  if (age < 35) ageFactor = 0;
+  else if (age < 45) ageFactor = (age - 35) * 1.8;
+  else if (age < 55) ageFactor = 18 + ((age - 45) * 1.8);
+  else if (age < 65) ageFactor = 36 + ((age - 55) * 1.8);
+  else if (age < 75) ageFactor = 54 + ((age - 65) * 1.9);
+  else if (age < 85) ageFactor = 73 + ((age - 75) * 1.8);
+  else if (age < 90) ageFactor = 91 + ((age - 85) * 1.8);
+  else ageFactor = 100;
 
-  var risk = Math.exp(xb) / (1 + Math.exp(xb)) * 100;
-  return Math.round(risk * 10) / 10;
+  // 2. ЧСС
+  var hrFactor;
+  if (hr < 70) hrFactor = 0;
+  else if (hr < 80) hrFactor = (hr - 70) * 0.3;
+  else if (hr < 90) hrFactor = 3 + ((hr - 80) * 0.2);
+  else if (hr < 100) hrFactor = 5 + ((hr - 90) * 0.3);
+  else if (hr < 110) hrFactor = 8 + ((hr - 100) * 0.2);
+  else if (hr < 150) hrFactor = 10 + ((hr - 110) * 0.3);
+  else if (hr < 200) hrFactor = 22 + ((hr - 150) * 0.3);
+  else hrFactor = 34;
+
+  // 3. САД
+  var sbpFactor;
+  if (sbp < 80) sbpFactor = 40;
+  else if (sbp < 100) sbpFactor = 40 - ((sbp - 80) * 0.3);
+  else if (sbp < 110) sbpFactor = 34 - ((sbp - 100) * 0.3);
+  else if (sbp < 120) sbpFactor = 31 - ((sbp - 110) * 0.4);
+  else if (sbp < 130) sbpFactor = 27 - ((sbp - 120) * 0.3);
+  else if (sbp < 140) sbpFactor = 24 - ((sbp - 130) * 0.3);
+  else if (sbp < 150) sbpFactor = 20 - ((sbp - 140) * 0.4);
+  else if (sbp < 160) sbpFactor = 17 - ((sbp - 150) * 0.3);
+  else if (sbp < 180) sbpFactor = 14 - ((sbp - 160) * 0.3);
+  else if (sbp < 200) sbpFactor = 8 - ((sbp - 180) * 0.4);
+  else sbpFactor = 0;
+
+  // 4. Креатинин (мг/дл)
+  var crFactor;
+  if (crMg < 0.2) crFactor = crMg * 5;
+  else if (crMg < 0.4) crFactor = 1 + ((crMg - 0.2) * 10);
+  else if (crMg < 0.6) crFactor = 3 + ((crMg - 0.4) * 5);
+  else if (crMg < 0.8) crFactor = 4 + ((crMg - 0.6) * 10);
+  else if (crMg < 1.0) crFactor = 6 + ((crMg - 0.8) * 5);
+  else if (crMg < 1.2) crFactor = 7 + ((crMg - 1.0) * 5);
+  else if (crMg < 1.4) crFactor = 8 + ((crMg - 1.2) * 10);
+  else if (crMg < 1.6) crFactor = 10 + ((crMg - 1.4) * 5);
+  else if (crMg < 1.8) crFactor = 11 + ((crMg - 1.6) * 10);
+  else if (crMg < 2.0) crFactor = 13 + ((crMg - 1.8) * 5);
+  else if (crMg < 3.0) crFactor = 14 + ((crMg - 2.0) * 7);
+  else if (crMg < 4.0) crFactor = 21 + ((crMg - 3.0) * 7);
+  else crFactor = 28;
+
+  // 5. Класс Killip + бинарные факторы
+  var killipPts = [0, 0, 15, 29, 44];
+  var score = ageFactor + hrFactor + sbpFactor + crFactor + (killipPts[parseInt(killip)] || 0);
+  if (arrest) score += 30;
+  if (stDeviation) score += 17;
+  if (enzymes) score += 13;
+
+  return Math.round(score);
+}
+
+// Процент 6-месячной смертности (таблица MDCalc, линейная интерполяция между точками)
+var grace2PctTable = [
+  [93, 3], [110, 6], [120, 8], [126, 10], [130, 11], [139, 15], [145, 17], [159, 26], [174, 30]
+];
+function calcGRACE2RiskPct(score) {
+  var t = grace2PctTable;
+  if (score <= t[0][0]) return t[0][1];
+  var last = t.length - 1;
+  if (score >= t[last][0]) return t[last][1];
+  for (var i = 0; i < last; i++) {
+    if (score >= t[i][0] && score <= t[i + 1][0]) {
+      var x0 = t[i][0], x1 = t[i + 1][0], y0 = t[i][1], y1 = t[i + 1][1];
+      return y0 + (y1 - y0) * (score - x0) / (x1 - x0);
+    }
+  }
+  return t[last][1];
+}
+function grace2Category(score) {
+  if (score <= 75) return 'Низкий';
+  if (score <= 128) return 'Средний';
+  if (score <= 173) return 'Высокий';
+  if (score <= 199) return 'Очень высокий';
+  return 'Крайне высокий';
 }
 
 // ===================================================
@@ -2221,7 +2294,7 @@ function calculate() {
     var gScore     = calcGRACE(age, hr, sbp, creat, killip, arrest, stDev, enzymes);
     var gRisk      = graceRisk(gScore);
     var gLabel     = graceRiskLabel(gScore);
-    var grace2_6m  = calcGRACE2_6month(age, hr, sbp, creat, killip, arrest, stDev, enzymes);
+    var grace2     = calcGRACE2(age, hr, sbp, creat, killip, arrest, stDev, enzymes);
 
     var rkoRiskText = '';
     if (gScore <= 108)      rkoRiskText = 'низкий (≤108 баллов)';
@@ -2233,7 +2306,8 @@ function calculate() {
         '<span style="font-weight:600;">Риск смерти в стационаре (РКО):</span> ' + rkoRiskText +
       '</div>' +
       '<div style="margin-bottom:6px;font-size:13px;">' +
-        '<span style="font-weight:600;">6‑месячная смертность (GRACE 2.0):</span> ' + grace2_6m.toFixed(1) + '%' +
+        '<span style="font-weight:600;">GRACE 2.0:</span> ' + grace2 + ' ' + pluralizeBalls(grace2) +
+        ' — ' + calcGRACE2RiskPct(grace2).toFixed(0) + '% (' + grace2Category(grace2) + ', 6 мес.)' +
       '</div>' +
       '<div style="margin-top:8px;font-size:12px;color:var(--text-2);">' +
         'ИИ калькулятор <a href="https://www.grace-3.com/" target="_blank" style="color:var(--primary);font-weight:600;text-decoration:none;">GRACE 3.0</a>' +
@@ -2257,7 +2331,8 @@ function calculate() {
     var rkoCategoryText = gScore <= 108 ? 'низкий' : gScore <= 140 ? 'умеренный' : 'высокий';
     var rkoThresholds = { 'низкий': '≤108 баллов', 'умеренный': '109–140 баллов', 'высокий': '≥141 балла' };
     copyLines.push('GRACE 1.0: ' + gScore + ' ' + pluralizeBalls(gScore) + ' — ' + rkoCategoryText +
-      ' риск по РКО (' + (rkoThresholds[rkoCategoryText] || '') + '). Риск 6-месячной летальности по GRACE 2.0: ' + grace2_6m.toFixed(1) + '%.');
+      ' риск по РКО (' + (rkoThresholds[rkoCategoryText] || '') + '). GRACE 2.0: ' + grace2 + ' ' + pluralizeBalls(grace2) +
+      ' — ' + calcGRACE2RiskPct(grace2).toFixed(0) + '% (' + grace2Category(grace2) + ', 6 мес.).');
   }
 
   // --- CRUSADE ---
