@@ -429,7 +429,10 @@
 
   <!-- ===== ПЕРЕД ОПЕРАЦИЕЙ (модуль periop, режим «Поликлиника») ===== -->
   <div class="card" id="periopBlock" style="display:none;">
-    <div class="card-header">🩺 Перед операцией <span style="font-weight:400;color:var(--muted);font-size:11.5px">консультация перед плановой операцией · AHA/ACC 2024</span></div>
+    <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
+      <span>🩺 Перед операцией <span style="font-weight:400;color:var(--muted);font-size:11.5px">консультация перед плановой операцией · AHA/ACC 2024</span></span>
+      <button type="button" class="btn" id="p_termsBtn" title="Справочник терминов" style="padding:6px 12px;font-size:12.5px">❓ Термины</button>
+    </div>
     <div class="card-body">
       <div class="periop-tabs" id="periopTabs">
         <button type="button" class="periop-tab active" data-tab="p_tab1">1 · Операция</button>
@@ -440,27 +443,34 @@
       </div>
 
       <div class="periop-pane active" id="p_tab1">
-        <div class="periop-field"><b>Тип операции</b>
+        <div class="periop-field"><b>Тип операции <span class="info-icon" id="p_tipOpType" style="cursor:help;font-size:15px;opacity:.65;vertical-align:middle">ⓘ</span></b>
           <select id="p_opType">
             <option value="">— выберите —</option>
-            <option value="vascular">Сосудистая (выше паховой связки)</option>
-            <option value="thoracic">Торакальная</option>
-            <option value="transplant">Трансплантация</option>
-            <option value="neuro">Нейрохирургия</option>
-            <option value="general">Общая хирургия</option>
-            <option value="ent">ЛОР</option>
-            <option value="urology">Урология</option>
-            <option value="ortho">Ортопедия</option>
-            <option value="endocrine">Эндокринные операции</option>
-            <option value="breast">Молочная железа</option>
-            <option value="gyn">Гинекология / акушерство</option>
+            <optgroup label="Наивысший риск">
+              <option value="vascular">Сосудистая (выше паховой связки)</option>
+              <option value="thoracic">Торакальная</option>
+              <option value="transplant">Трансплантация</option>
+              <option value="neuro">Нейрохирургия</option>
+            </optgroup>
+            <optgroup label="Промежуточный риск">
+              <option value="general">Общая хирургия</option>
+              <option value="ent">ЛОР</option>
+              <option value="urology">Урология</option>
+              <option value="ortho">Ортопедия</option>
+            </optgroup>
+            <optgroup label="Низкий риск">
+              <option value="endocrine">Эндокринные операции</option>
+              <option value="breast">Молочная железа</option>
+              <option value="gyn">Гинекология / акушерство</option>
+            </optgroup>
             <option value="unknown">Не знаю / другое</option>
           </select>
         </div>
-        <div class="periop-field periop-hide" id="p_intraRow"><b>Операция внутрибрюшная?</b>
+        <div class="periop-field periop-hide" id="p_intraRow"><b>Операция внутрибрюшная? <span class="info-icon" id="p_tipIntra" style="cursor:help;font-size:15px;opacity:.65;vertical-align:middle">ⓘ</span></b>
           <select id="p_opIntra"><option value="">—</option><option value="1">Да</option><option value="0">Нет</option></select>
         </div>
-        <div class="periop-field"><b>Срочность</b>
+        <div class="periop-hint periop-hide" id="p_unknownHint" style="color:var(--orange-deep)">Риск не определён автоматически. Выберите его вручную в поле «Риск операции» (классификация — разд. 1.5).</div>
+        <div class="periop-field"><b>Срочность <span class="info-icon" id="p_tipUrgency" style="cursor:help;font-size:15px;opacity:.65;vertical-align:middle">ⓘ</span></b>
           <select id="p_opUrgency">
             <option value="elective">Плановая</option>
             <option value="timeSensitive">Time-sensitive (можно отложить до 3 мес)</option>
@@ -468,7 +478,7 @@
             <option value="emergency">Экстренная</option>
           </select>
         </div>
-        <div class="periop-field"><b>Риск операции (MACE)</b>
+        <div class="periop-field"><b>Риск операции (MACE) <span class="info-icon" id="p_tipRisk" style="cursor:help;font-size:15px;opacity:.65;vertical-align:middle">ⓘ</span></b>
           <select id="p_opRisk"><option value="">— по категории —</option><option value="low">Низкий (&lt;1%)</option><option value="elevated">Повышенный (≥1%)</option></select>
           <span class="periop-hint" id="p_opRiskHint"></span>
         </div>
@@ -478,11 +488,11 @@
         <div class="periop-sec">Нестабильные состояния (стоп-признаки)</div>
         <div class="periop-cb"><input type="checkbox" id="p_uAcs"><div>ОКС: нестабильная стенокардия / ИМ ≤30 дней</div></div>
         <div class="periop-cb"><input type="checkbox" id="p_uHf"><div>Декомпенсация ХСН</div></div>
-        <div class="periop-cb"><input type="checkbox" id="p_uAsSympt"><div>Симптомный тяжёлый аортальный стеноз</div></div>
-        <div class="periop-cb"><input type="checkbox" id="p_uArrhythmia"><div>Значимая симптомная аритмия</div></div>
+        <div class="periop-cb"><input type="checkbox" id="p_uAsSympt"><div>Симптомный тяжёлый аортальный стеноз <span class="info-icon" id="p_tipAs" style="cursor:help;font-size:15px;opacity:.65;vertical-align:middle">ⓘ</span></div></div>
+        <div class="periop-cb"><input type="checkbox" id="p_uArrhythmia"><div>Значимая симптомная аритмия <span class="info-icon" id="p_tipArrh" style="cursor:help;font-size:15px;opacity:.65;vertical-align:middle">ⓘ</span></div></div>
         <div class="periop-cb"><input type="checkbox" id="p_uStroke"><div>Недавний инсульт/ТИА или нестабильная ЦВБ</div></div>
         <div class="periop-sec">Особое (не «стоп», но важно)</div>
-        <div class="periop-cb"><input type="checkbox" id="p_htnSevere"><div>Тяжёлая неконтролируемая АГ ≥180/110</div></div>
+        <div class="periop-cb"><input type="checkbox" id="p_htnSevere"><div>Тяжёлая неконтролируемая АГ ≥180/110 <span class="info-icon" id="p_tipHtn" style="cursor:help;font-size:15px;opacity:.65;vertical-align:middle">ⓘ</span></div></div>
         <div class="periop-field"><b>Известный тяжёлый аортальный стеноз (без симптомов)?</b>
           <select id="p_asKnown"><option value="">не знаю</option><option value="yes">да</option><option value="no">нет</option></select>
         </div>
@@ -502,15 +512,15 @@
       </div>
 
       <div class="periop-pane" id="p_tab3">
-        <div class="periop-sec">RCRI <span class="periop-badge" id="p_rcriBadge">0 · I (низкий)</span></div>
+        <div class="periop-sec">RCRI <span class="periop-badge" id="p_rcriBadge">0 · I (низкий)</span> <span class="info-icon" id="p_tipRcri" style="cursor:help;font-size:15px;opacity:.65;vertical-align:middle">ⓘ</span></div>
         <div class="periop-rcri"><input type="checkbox" id="p_rIhd" disabled><span>ИБС (инфаркт/стенокардия)</span><span class="src">авто: ИМ / сосудистое</span></div>
         <div class="periop-rcri"><input type="checkbox" id="p_rCvd" disabled><span>ЦВБ (инсульт/ТИА)</span><span class="src">авто: инсульт / ТИА</span></div>
         <div class="periop-rcri"><input type="checkbox" id="p_rHf" disabled><span>ХСН в анамнезе</span><span class="src">авто</span></div>
-        <div class="periop-rcri"><input type="checkbox" id="p_rDmInsulin"><span>СД на инсулине</span><span class="src">ручной</span></div>
+        <div class="periop-rcri"><input type="checkbox" id="p_rDmInsulin"><span>СД на инсулине <span class="info-icon" id="p_tipDm" style="cursor:help;font-size:14px;opacity:.65;vertical-align:middle">ⓘ</span></span><span class="src">ручной</span></div>
         <div class="periop-rcri"><input type="checkbox" id="p_rCrea" disabled><span>Креатинин ≥177 мкмоль/л</span><span class="src">авто</span></div>
         <div class="periop-rcri"><input type="checkbox" id="p_rHigh" disabled><span>Высокорисковая операция</span><span class="src">авто: тип операции</span></div>
         <div class="periop-hint" style="margin:6px 0">Класс: 0 — I (низкий) · 1 — II (умеренный) · 2 — III (высокий) · ≥3 — IV (очень высокий)</div>
-        <div class="periop-field"><b>Поднимается на 2 лестничных пролёта / проходит квартал? (≥4 METs)</b>
+        <div class="periop-field"><b>Поднимается на 2 лестничных пролёта / проходит квартал? (≥4 METs) <span class="info-icon" id="p_tipMet" style="cursor:help;font-size:15px;opacity:.65;vertical-align:middle">ⓘ</span></b>
           <select id="p_met4"><option value="">не знаю</option><option value="yes">Да</option><option value="no">Нет</option></select>
         </div>
       </div>
@@ -1412,6 +1422,52 @@
 <script src="periop_data.js"></script>
 <script src="periop_engine.js"></script>
 <script>
+/* ===== Модуль «Перед операцией» (periop) — справочник терминов ===== */
+(function () {
+  // Модальное окно справочника
+  var overlay = document.createElement('div');
+  overlay.className = 'help-overlay';
+  overlay.id = 'periopTermsOverlay';
+  overlay.style.display = 'none';   // скрыт по умолчанию: opacity:0 сам по себе НЕ отключает перехват кликов
+  overlay.innerHTML =
+    '<div class="help-modal" style="max-width:700px">' +
+      '<div class="help-modal-header">' +
+        '<div class="help-modal-title">❓ Термины и обозначения</div>' +
+        '<button type="button" class="help-close-btn" id="p_termsClose">✕</button>' +
+      '</div>' +
+      '<div class="help-modal-body" style="display:block;overflow:auto;padding:16px 18px">' +
+        '<div style="font-weight:800;font-size:13px;margin:2px 0 8px">Риск и шкалы</div>' +
+        '<div style="font-size:13px;line-height:1.65;margin-bottom:10px"><b>MACE</b> — большие неблагоприятные сердечно-сосудистые события: смерть от сердечно-сосудистых причин, инфаркт миокарда, остановка сердца (в периоперационном контексте также инсульт, декомпенсация СН). Порог 1% делит операции на низкий и повышенный риск.</div>' +
+        '<div style="font-size:13px;line-height:1.65;margin-bottom:10px"><b>Риск операции</b> — вероятность MACE по типу операции (разд. 1.5). Низкий — менее 1%, повышенный — 1% и выше.</div>' +
+        '<div style="font-size:13px;line-height:1.65;margin-bottom:10px"><b>RCRI</b> — индекс из 6 пунктов: ИБС, ЦВБ (инсульт/ТИА), ХСН, сахарный диабет на инсулине, креатинин ≥177 мкмоль/л, высокорисковая операция. Класс: 0 — I (низкий), 1 — II (умеренный), 2 — III (высокий), 3 и более — IV (очень высокий). Значение выше 1 — повышенный риск.</div>' +
+        '<div style="font-size:13px;line-height:1.65;margin-bottom:10px"><b>MET</b> — мера переносимости нагрузки (1 MET — нагрузка в покое). Способность подняться на 2 лестничных пролёта соответствует примерно 4 MET и более; менее 4 MET — плохая переносимость, фактор риска (разд. 3.2).</div>' +
+        '<div style="font-weight:800;font-size:13px;margin:14px 0 8px">Термины в модуле</div>' +
+        '<div style="font-size:13px;line-height:1.65;margin-bottom:10px"><b>Срочность операции</b> (Table 2): плановая — можно отложить без ущерба для полного обследования; time-sensitive — отсрочка до 3 месяцев не влияет на исход; срочная — угроза жизни или конечности, 2–24 ч; экстренная — менее 2 ч. Экстренность сама по себе повышает риск.</div>' +
+        '<div style="font-size:13px;line-height:1.65;margin-bottom:10px"><b>Высокорисковая операция (для RCRI)</b> — внутрибрюшная, внутригрудная или сосудистая выше паховой связки.</div>' +
+        '<div style="font-size:13px;line-height:1.65;margin-bottom:10px"><b>MINS</b> — повреждение миокарда после некардиальной операции (рост тропонина). При повышенном риске рассматривается контроль тропонина после операции (разд. 9.1).</div>' +
+        '<div style="font-size:12.5px;color:var(--muted);line-height:1.6;margin-top:14px">Источник: 2024 AHA/ACC Guideline for Perioperative Cardiovascular Management for Noncardiac Surgery. Справочник носит вспомогательный характер и не заменяет клиническое суждение.</div>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+
+  function openTerms() {
+    overlay.style.display = 'flex';
+    requestAnimationFrame(function () { overlay.classList.add('visible'); });
+  }
+  function closeTerms() {
+    overlay.classList.remove('visible');
+    setTimeout(function () { overlay.style.display = 'none'; }, 300);
+  }
+
+  var btn = document.getElementById('p_termsBtn');
+  if (btn) btn.addEventListener('click', openTerms);
+  var closeBtn = document.getElementById('p_termsClose');
+  if (closeBtn) closeBtn.addEventListener('click', closeTerms);
+  overlay.addEventListener('click', function (e) { if (e.target === overlay) closeTerms(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeTerms(); });
+})();
+</script>
+<script>
 /* ===== Модуль «Перед операцией» (periop) — интерфейс ===== */
 (function () {
   var DATA = window.PeriopData, ENGINE = window.PeriopEngine;
@@ -1446,6 +1502,7 @@
   opTypeEl.addEventListener('change', function () {
     var v = opTypeEl.value;
     show(document.getElementById('p_intraRow'), v === 'general' || v === 'gyn' || v === 'transplant');
+    show(document.getElementById('p_unknownHint'), v === 'unknown');
     var hint = DATA.riskHint(v);
     var hintEl = document.getElementById('p_opRiskHint');
     if (hint === 'low') { hintEl.textContent = 'Категория низкого риска (1.5) — подставлен «Низкий».'; document.getElementById('p_opRisk').value = 'low'; }
@@ -1529,6 +1586,26 @@
       navigator.clipboard.writeText(txt).then(function () { done('Скопировано.'); }, fallback);
     } else fallback();
   });
+
+  // Тултипы-подсказки (механизм МедикСчета: setupTooltipTrigger из core.js)
+  if (typeof window.setupTooltipTrigger === 'function') {
+    var TIPS = {
+      p_tipOpType: 'Выберите тип операции. Категория задаёт ориентир риска MACE (разд. 1.5). Для «общей хирургии» и «ортопедии» итоговый риск зависит от объёма операции и пациента — решите после вкладки «Риск».',
+      p_tipIntra: 'Внутрибрюшная операция — вмешательство в брюшной полости (лапаротомия или лапароскопия органов живота). Влияет на пункт RCRI «высокорисковая операция».',
+      p_tipUrgency: 'Срочность (Table 2): плановая — можно отложить для полного обследования; time-sensitive — отсрочка до 3 мес не влияет на исход; срочная — угроза жизни/конечности, 2–24 ч; экстренная — менее 2 ч. Экстренность сама повышает риск.',
+      p_tipRisk: 'MACE — большие сердечно-сосудистые события (смерть, инфаркт, остановка сердца). Низкий риск — менее 1%, повышенный — 1% и более. Если выбран «Не знаю / другое» — укажите риск вручную по классификации (разд. 1.5).',
+      p_tipAs: 'Симптомный: одышка при нагрузке, стенокардия, синкопе. Тяжёлый: площадь клапана менее 1,0 см², средний градиент 40 мм рт. ст. и более или Vmax 4,0 м/с и более (разд. 6.4.1).',
+      p_tipArrh: 'Высокостепенная АВ-блокада, желудочковые тахиаритмии, неконтролируемая тахиаритмия — состояния, требующие вмешательства до плановой операции (разд. 6.5–6.6).',
+      p_tipHtn: 'Тяжёлая АГ (180/110 и выше) — НЕ повод откладывать сама по себе: продолжайте хроническую терапию, АД экстренно не снижайте (нет доказательств пользы); решение об отсрочке — с анестезиологом (разд. 6.2).',
+      p_tipRcri: 'RCRI — индекс из 6 пунктов; значение выше 1 означает повышенный риск. Пункты ИБС, ЦВБ, ХСН и креатинин подтягиваются автоматически из общих данных пациента.',
+      p_tipDm: 'Пункт RCRI срабатывает только при сахарном диабете на инсулине (не при приёме таблетированных препаратов).',
+      p_tipMet: '4 MET и более — способность подняться на 2 лестничных пролёта. Менее 4 MET — плохая переносимость нагрузки, фактор риска (разд. 3.2).'
+    };
+    Object.keys(TIPS).forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) window.setupTooltipTrigger(el, TIPS[id]);
+    });
+  }
 
   update();
 })();
