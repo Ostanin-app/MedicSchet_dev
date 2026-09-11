@@ -444,7 +444,7 @@ body.dark-theme .periop-drugAction{background:rgba(255,255,255,.03);border-color
   <div class="card" id="periopBlock" style="display:none;">
     <div class="card-header" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap">
       <span>🩺 Перед операцией <span style="font-weight:400;color:var(--muted);font-size:11.5px">консультация перед плановой операцией · AHA/ACC 2024</span></span>
-      <button type="button" class="btn" id="p_termsBtn" title="Справочник терминов" style="padding:6px 12px;font-size:12.5px">❓ Термины</button>
+      <button type="button" class="group-btn" id="p_termsBtn" title="Справочник терминов" style="padding:6px 12px;font-size:12.5px">❓ Термины</button>
     </div>
     <div class="card-body">
       <div class="periop-tabs" id="periopTabs">
@@ -517,7 +517,7 @@ body.dark-theme .periop-drugAction{background:rgba(255,255,255,.03);border-color
         <div class="periop-hide" id="p_pciRow" style="margin:6px 0 0 0; padding:10px 12px; background:var(--surface-2); border:1px solid var(--border); border-radius:10px">
           <div class="periop-row" style="align-items:flex-end">
             <div class="periop-field" style="min-width:150px" id="p_pciDateField"><b>Дата ЧКВ</b><input type="date" id="p_pciDate"><span class="periop-hint" id="p_pciDateHint" style="display:none;color:var(--orange-deep)"></span> <span class="warning-icon" id="p_pciDateWarn" style="display:none;cursor:help;">⚠️</span></div>
-            <div class="periop-field" style="min-width:110px;justify-content:center" id="p_pciGE12Field"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600"><input type="checkbox" id="p_pciGE12"> ≥12 мес</label><span class="periop-hint">если давно</span></div>
+            <div class="periop-field" style="min-width:110px" id="p_pciGE12Field"><label class="periop-card" style="justify-content:center;padding:8px 10px"><input type="checkbox" id="p_pciGE12"><span style="font-weight:600">≥12 мес</span></label><span class="periop-hint" style="text-align:center;display:block;margin-top:4px">если давно</span></div>
             <div class="periop-field" style="min-width:190px"><b>Показание</b>
               <select id="p_pciInd"><option value="acs">ОКС (инфаркт)</option><option value="ccd">Стабильная ИБС</option><option value="unknown">Не знаю</option></select>
             </div>
@@ -525,7 +525,7 @@ body.dark-theme .periop-drugAction{background:rgba(255,255,255,.03);border-color
           <input type="hidden" id="p_pciMonths" value="">
           <label class="periop-card" style="margin-top:8px"><input type="checkbox" id="p_pciComplex"><span>Сложное ЧКВ (бифуркации, длинные стенты, многососудистое) или детали неизвестны</span></label>
         </div>
-        <div class="periop-field" id="p_hba1cRow" style="margin-top:10px"><b>HbA1c за последние 3 мес?</b>
+        <div class="periop-field" id="p_hba1cRow" style="margin-top:10px"><b>HbA1c измерялся за последние 3 месяца?</b>
           <select id="p_hba1cRecent"><option value="yes">Да</option><option value="no">Нет / не знаю</option></select>
         </div>
       </div>
