@@ -48,11 +48,16 @@ body.dark-theme .periop-drugAction{background:rgba(255,255,255,.03);border-color
 #p_pciRow .periop-card:hover{background:var(--surface);border-color:var(--primary)}
 body.dark-theme #p_pciRow .periop-card{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.12)}
 body.dark-theme #p_pciRow .periop-card:hover{background:rgba(255,255,255,.08);border-color:var(--primary)}
-.periop-verdict{border-radius:10px;padding:11px 14px;margin:10px 0;font-weight:800;font-size:14.5px}
-.periop-ok{background:var(--green-soft);color:var(--green-deep)}
-.periop-caution{background:var(--orange-soft);color:var(--orange-deep)}
-.periop-defer{background:var(--red-soft);color:var(--red-deep)}
-.periop-pending{background:var(--surface-3);color:var(--text-2)}
+.periop-verdict{display:flex;align-items:center;gap:10px;border-radius:10px;padding:12px 14px;margin:10px 0;font-weight:800;font-size:15px;border-left:4px solid transparent}
+.periop-ok{background:var(--green-soft);color:var(--green-deep);border-left-color:var(--green)}
+.periop-caution{background:var(--orange-soft);color:var(--orange-deep);border-left-color:var(--orange)}
+.periop-defer{background:var(--red-soft);color:var(--red-deep);border-left-color:var(--red)}
+.periop-pending{background:var(--surface-3);color:var(--text-2);border-left-color:var(--border-strong)}
+.periop-outCard{background:var(--surface);border:1.5px solid var(--border);border-radius:10px;overflow:hidden;display:flex;flex-direction:column}
+.periop-outHeader{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;background:var(--surface-2);border-bottom:1px solid var(--border);font-weight:700;font-size:13px;color:var(--text)}
+.periop-outHeader .group-btn{padding:5px 10px;font-size:12px}
+.periop-outCard .periop-out{border:none;margin:0;border-radius:0;background:var(--surface);flex:1}
+@media(max-width:700px){#p_outGrid{grid-template-columns:1fr}}
 .periop-out{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:12.5px;line-height:1.55;white-space:pre-wrap;font-family:inherit;margin:6px 0;color:var(--text)}
 .periop-status{font-size:12px;color:var(--green-deep);min-height:16px;margin:6px 0}
 .periop-hide{display:none!important}
@@ -557,14 +562,20 @@ body.dark-theme #p_pciRow .periop-card:hover{background:rgba(255,255,255,.08);bo
 
       <div class="periop-pane" id="p_tab5">
         <div class="periop-verdict periop-pending" id="p_verdict">Заполните вкладки — вердикт появится автоматически.</div>
-        <div class="periop-row" style="align-items:center;margin:6px 0">
-          <button type="button" class="btn" id="p_copyBtn">📋 Копировать всё (история + для хирурга)</button>
+        <div class="periop-grid" id="p_outGrid" style="grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+          <div class="periop-outCard">
+            <div class="periop-outHeader"><span>📝 Для истории болезни</span><button type="button" class="group-btn" id="p_copyHistoryBtn" title="Копировать историю">📋 Копировать</button></div>
+            <pre class="periop-out" id="p_historyOut"></pre>
+          </div>
+          <div class="periop-outCard">
+            <div class="periop-outHeader"><span>🩺 Для хирурга / анестезиолога</span><button type="button" class="group-btn" id="p_copySurgeonBtn" title="Копировать для хирурга">📋 Копировать</button></div>
+            <pre class="periop-out" id="p_surgeonOut"></pre>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap">
+          <button type="button" class="group-btn" id="p_copyBtn" style="background:var(--primary);color:#fff;border-color:var(--primary)">📋 Копировать всё</button>
           <div class="periop-status" id="p_copyStatus"></div>
         </div>
-        <div class="periop-sec" style="margin-top:8px">Для истории болезни</div>
-        <pre class="periop-out" id="p_historyOut"></pre>
-        <div class="periop-sec">Для хирурга / анестезиолога</div>
-        <pre class="periop-out" id="p_surgeonOut"></pre>
       </div>
     </div>
   </div>
@@ -1703,7 +1714,9 @@ body.dark-theme #p_pciRow .periop-card:hover{background:rgba(255,255,255,.08);bo
   function render(e) {
     var v = document.getElementById('p_verdict');
     v.className = 'periop-verdict periop-' + e.verdict.level;
-    v.textContent = e.verdict.title;
+    var icons = {pending:'📝', ok:'✅', caution:'⚠️', defer:'⛔'};
+    var ico = icons[e.verdict.level] || '';
+    v.innerHTML = '<span style="font-size:18px;line-height:1">' + ico + '</span><span>' + escapeHtml(e.verdict.title) + '</span>';
     document.getElementById('p_historyOut').textContent = e.historyText;
     var surgeonOut = document.getElementById('p_surgeonOut');
     var surgeonHtml = escapeHtml(e.surgeonText);
@@ -1715,6 +1728,24 @@ body.dark-theme #p_pciRow .periop-card:hover{background:rgba(255,255,255,.08);bo
     surgeonOut.innerHTML = surgeonHtml;
   }
 
+  function setupPeriopCopy(btnId, getText){
+    var btn = document.getElementById(btnId);
+    if (!btn) return;
+    btn.addEventListener('click', function(){
+      var txt = getText();
+      var st = document.getElementById('p_copyStatus');
+      function done(msg){ st.textContent = msg; setTimeout(function(){ st.textContent=''; }, 3000); }
+      function fallback(){
+        var ta=document.createElement('textarea');ta.value=txt;ta.style.position='fixed';ta.style.opacity='0';
+        document.body.appendChild(ta);ta.select();
+        try{document.execCommand('copy');done('Скопировано.');}catch(err){done('Выделено — нажмите Ctrl+C.');}
+        document.body.removeChild(ta);
+      }
+      if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(function(){done('Скопировано.');}, fallback);} else fallback();
+    });
+  }
+  setupPeriopCopy('p_copyHistoryBtn', function(){ return document.getElementById('p_historyOut').textContent; });
+  setupPeriopCopy('p_copySurgeonBtn', function(){ return document.getElementById('p_surgeonOut').textContent; });
   document.getElementById('p_copyBtn').addEventListener('click', function () {
     var historyText = document.getElementById('p_historyOut').textContent;
     var surgeonText = document.getElementById('p_surgeonOut').textContent;
