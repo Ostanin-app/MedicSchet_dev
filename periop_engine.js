@@ -182,34 +182,73 @@
       minsFlag = false;
     }
 
-    // Сборка текстов
+    // Сборка текстов — компактные блоки с маркерами (для копирования и для отображения блоками)
     var opLabels = { vascular: 'сосудистая (выше паховой связки)', thoracic: 'торакальная', transplant: 'трансплантация', neuro: 'нейрохирургия', general: 'общая хирургия', ent: 'ЛОР', urology: 'урология', ortho: 'ортопедия', endocrine: 'эндокринные операции', breast: 'молочная железа', gyn: 'гинекология/акушерство', unknown: 'не уточнена' };
     var urgencyLabel = { elective: 'плановая', timeSensitive: 'time-sensitive', urgent: 'срочная', emergency: 'экстренная' }[opUrgency] || opUrgency;
     var riskLabel = opRisk === 'low' ? 'низкий (<1%)' : opRisk === 'elevated' ? 'повышенный (≥1%)' : 'не указан';
+    var metLabel = input.met4 === true ? '≥4 METs (2 пролёта)' : input.met4 === false ? '<4 METs' : 'не уточнён';
+    // История — блоки с заголовками и маркерами
+    var historyLines = [];
+    historyLines.push('Перед операцией: ' + (opLabels[opType] || opType) + ', ' + urgencyLabel + ' · риск ' + riskLabel);
+    if (unstableReasons.length) {
+      historyLines.push('Состояние: нестабильное');
+      if (has(unst.acs)) historyLines.push('• ОКС ≤30 дн.');
+      if (has(unst.hf)) historyLines.push('• декомпенсация ХСН');
+      if (has(unst.asSympt)) historyLines.push('• симптомный тяжёлый АС');
+      if (has(unst.arrhythmia)) historyLines.push('• значимая аритмия');
+      if (has(unst.stroke)) historyLines.push('• недавний инсульт/ТИА');
+    } else {
+      historyLines.push('Состояние: стабильное');
+    }
+    historyLines.push('RCRI ' + rcri.points + ' (' + rcri.classLabel + ') · ' + metLabel);
+    historyLines.push('Вердикт: ' + title);
+    if (explanation.length && level !== 'pending') {
+      historyLines.push('');
+      historyLines.push('Пояснение:');
+      explanation.forEach(function (ex) { historyLines.push('• ' + ex); });
+    }
+    if (stent.note && level !== 'defer') {
+      historyLines.push('');
+      historyLines.push('ЧКВ:');
+      historyLines.push('• ' + stent.note);
+    } else if (stent.note && level === 'defer') {
+      // уже в пояснении, дублировать не нужно — defer уже содержит stent.note
+    }
+    if (recommendations.length) {
+      historyLines.push('');
+      historyLines.push('Рекомендовано:');
+      recommendations.forEach(function (rec) { historyLines.push('• ' + rec); });
+    }
+    if (drugs.length) {
+      historyLines.push('');
+      historyLines.push('Лекарства:');
+      drugs.forEach(function (d) { historyLines.push('• ' + d.label + ' — ' + d.action); });
+    }
+    if (hints.length) {
+      historyLines.push('');
+      historyLines.push('Примечания:');
+      hints.forEach(function (h) { historyLines.push('• ' + h); });
+    }
+    var historyText = historyLines.join('\n');
 
-    var metLabel = input.met4 === true ? '≥4 METs (2 лестничных пролёта)' : input.met4 === false ? '<4 METs' : 'не уточнён';
-    var historyParts = [
-      'Консультация перед операцией: ' + (opLabels[opType] || opType) + ' (' + urgencyLabel + ').',
-      'Состояние: ' + (unstableReasons.length ? 'нестабильное — ' + unstableReasons.join(' ') : 'стабильное') + '.',
-      'Риск операции: ' + riskLabel + '.',
-      'RCRI = ' + rcri.points + ' (класс ' + rcri.classLabel + ').',
-      'Функциональный статус: ' + metLabel + '.',
-      'Вердикт: ' + title + '.'
-    ];
-    if (stent.note && level !== 'defer') historyParts.push('ЧКВ: ' + stent.note);
-    if (explanation.length) historyParts.push(explanation.join(' '));
-    if (recommendations.length) historyParts.push('Рекомендовано: ' + recommendations.join('; ') + '.');
-    if (drugs.length) historyParts.push('Лекарства: ' + drugs.map(function (d) { return d.label + ' — ' + d.action; }).join(' '));
-    if (hints.length) historyParts.push(hints.join(' '));
-    var historyText = historyParts.join('\n');
-
-    var surgeonParts = ['Риск по RCRI — ' + rcri.points + ' (класс ' + rcri.classLabel + ').', 'Вердикт: ' + title + '.'];
-    if (drugs.length) surgeonParts.push('Препараты: ' + drugs.map(function (d) { return d.label + ' — ' + d.short + '.'; }).join(' '));
+    var surgeonLines = [];
+    surgeonLines.push('RCRI ' + rcri.points + ' (' + rcri.classLabel + ') · Вердикт: ' + title);
+    if (drugs.length) {
+      surgeonLines.push('');
+      surgeonLines.push('Препараты:');
+      drugs.forEach(function (d) { surgeonLines.push('• ' + d.label + ' — ' + d.short + '.'); });
+    } else {
+      surgeonLines.push('Препараты: не отмечены');
+    }
     var specials = [];
     if (stent.note) specials.push(stent.note);
-    if (minsFlag) specials.push('После операции: рассмотреть контроль тропонина (MINS; 9.1).');
-    if (specials.length) surgeonParts.push('Особое: ' + specials.join(' '));
-    var surgeonText = surgeonParts.join(' ');
+    if (minsFlag) specials.push('После операции: контроль тропонина (MINS, 9.1).');
+    if (specials.length) {
+      surgeonLines.push('');
+      surgeonLines.push('Особое:');
+      specials.forEach(function (s) { surgeonLines.push('• ' + s); });
+    }
+    var surgeonText = surgeonLines.join('\n');
 
     return {
       verdict: { level: level, title: title, explanation: explanation },

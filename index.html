@@ -56,9 +56,21 @@ body.dark-theme #p_pciRow .periop-card:hover{background:rgba(255,255,255,.08);bo
 .periop-outCard{background:var(--surface);border:1.5px solid var(--border);border-radius:10px;overflow:hidden;display:flex;flex-direction:column}
 .periop-outHeader{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px;background:var(--surface-2);border-bottom:1px solid var(--border);font-weight:700;font-size:13px;color:var(--text)}
 .periop-outHeader .group-btn{padding:5px 10px;font-size:12px}
-.periop-outCard .periop-out{border:none;margin:0;border-radius:0;background:var(--surface);flex:1}
+.periop-outCard .periop-out{border:none;margin:0;border-radius:0;background:var(--surface);flex:1;padding:10px 12px}
 @media(max-width:700px){#p_outGrid{grid-template-columns:1fr}}
 .periop-out{background:var(--surface-2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;font-size:12.5px;line-height:1.55;white-space:pre-wrap;font-family:inherit;margin:6px 0;color:var(--text)}
+.periop-outSec{margin-bottom:10px}
+.periop-outSec:last-child{margin-bottom:0}
+.periop-outSecTitle{font-weight:800;font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);margin-bottom:5px;display:flex;align-items:center;gap:6px}
+.periop-outLine{font-size:13px;line-height:1.5;color:var(--text);margin-bottom:2px}
+.periop-outLine b{font-weight:700}
+.periop-outList{margin:4px 0 0 0;padding-left:18px;font-size:13px;line-height:1.5;color:var(--text)}
+.periop-outList li{margin-bottom:3px}
+.periop-outList li::marker{color:var(--muted)}
+.periop-chipRow{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.periop-chip{display:inline-flex;align-items:center;padding:2px 9px;border-radius:20px;font-size:11.5px;font-weight:700;background:var(--surface-2);border:1px solid var(--border);color:var(--text-2)}
+body.dark-theme .periop-outSecTitle{color:var(--text-2)}
+body.dark-theme .periop-outLine,body.dark-theme .periop-outList{color:var(--text)}
 .periop-status{font-size:12px;color:var(--green-deep);min-height:16px;margin:6px 0}
 .periop-hide{display:none!important}
 </style>
@@ -565,11 +577,11 @@ body.dark-theme #p_pciRow .periop-card:hover{background:rgba(255,255,255,.08);bo
         <div class="periop-grid" id="p_outGrid" style="grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
           <div class="periop-outCard">
             <div class="periop-outHeader"><span>📝 Для истории болезни</span><button type="button" class="group-btn" id="p_copyHistoryBtn" title="Копировать историю">📋 Копировать</button></div>
-            <pre class="periop-out" id="p_historyOut"></pre>
+            <div class="periop-out" id="p_historyOut"></div>
           </div>
           <div class="periop-outCard">
             <div class="periop-outHeader"><span>🩺 Для хирурга / анестезиолога</span><button type="button" class="group-btn" id="p_copySurgeonBtn" title="Копировать для хирурга">📋 Копировать</button></div>
-            <pre class="periop-out" id="p_surgeonOut"></pre>
+            <div class="periop-out" id="p_surgeonOut"></div>
           </div>
         </div>
         <div style="display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap">
@@ -1711,21 +1723,97 @@ body.dark-theme #p_pciRow .periop-card:hover{background:rgba(255,255,255,.08);bo
     render(e);
   }
 
+  var _lastHist = '', _lastSurg = '';
+  function buildHistoryHtml(e){
+    var opLabels = { vascular: 'сосудистая (выше паховой связки)', thoracic: 'торакальная', transplant: 'трансплантация', neuro: 'нейрохирургия', general: 'общая хирургия', ent: 'ЛОР', urology: 'урология', ortho: 'ортопедия', endocrine: 'эндокринные операции', breast: 'молочная железа', gyn: 'гинекология/акушерство', unknown: 'не уточнена' };
+    var urgencyLabel = { elective: 'плановая', timeSensitive: 'time-sensitive', urgent: 'срочная', emergency: 'экстренная' }[val('p_opUrgency')] || val('p_opUrgency') || 'плановая';
+    var opType = val('p_opType') || 'unknown';
+    var opLabel = opLabels[opType] || 'не уточнена';
+    var riskVal = val('p_opRisk');
+    var riskLabel = riskVal === 'low' ? 'низкий (<1%)' : riskVal === 'elevated' ? 'повышенный (≥1%)' : 'не указан';
+    var metRaw = val('p_met4');
+    var metLabel = metRaw === 'yes' ? '≥4 METs' : metRaw === 'no' ? '<4 METs' : 'не уточнён';
+    var html = '';
+    html += '<div class="periop-outSec">';
+    html += '<div class="periop-outLine"><b>Операция:</b> ' + escapeHtml(opLabel) + ' · ' + escapeHtml(urgencyLabel) + ' · риск ' + escapeHtml(riskLabel) + '</div>';
+    var hasUnstable = bool('p_uAcs') || bool('p_uHf') || bool('p_uAsSympt') || bool('p_uArrhythmia') || bool('p_uStroke');
+    if (hasUnstable) {
+      html += '<div class="periop-outLine"><b>Состояние:</b> нестабильное</div>';
+      var urs = [];
+      if (bool('p_uAcs')) urs.push('ОКС ≤30 дн.');
+      if (bool('p_uHf')) urs.push('декомпенсация ХСН');
+      if (bool('p_uAsSympt')) urs.push('симптомный тяжёлый АС');
+      if (bool('p_uArrhythmia')) urs.push('значимая аритмия');
+      if (bool('p_uStroke')) urs.push('недавний инсульт/ТИА');
+      if (urs.length) html += '<ul class="periop-outList">' + urs.map(function(x){return '<li>' + escapeHtml(x) + '</li>';}).join('') + '</ul>';
+    } else {
+      html += '<div class="periop-outLine"><b>Состояние:</b> стабильное</div>';
+    }
+    html += '<div class="periop-outLine"><b>RCRI ' + e.rcri.points + '</b> (' + escapeHtml(e.rcri.classLabel) + ') · ' + escapeHtml(metLabel) + '</div>';
+    html += '</div>';
+    if (e.verdict.explanation && e.verdict.explanation.length && e.verdict.level !== 'pending'){
+      html += '<div class="periop-outSec"><div class="periop-outSecTitle">💬 Пояснение</div><ul class="periop-outList">';
+      e.verdict.explanation.forEach(function(ex){ html += '<li>' + escapeHtml(ex) + '</li>'; });
+      html += '</ul></div>';
+    }
+    if (e.stent && e.stent.note && e.verdict.level !== 'defer'){
+      html += '<div class="periop-outSec"><div class="periop-outSecTitle">🫀 ЧКВ</div><ul class="periop-outList"><li>' + escapeHtml(e.stent.note) + '</li></ul></div>';
+    }
+    if (e.recommendations && e.recommendations.length){
+      html += '<div class="periop-outSec"><div class="periop-outSecTitle">🧪 Рекомендовано</div><ul class="periop-outList">';
+      e.recommendations.forEach(function(r){ html += '<li>' + escapeHtml(r) + '</li>'; });
+      html += '</ul></div>';
+    }
+    if (e.drugsNotes && e.drugsNotes.length){
+      html += '<div class="periop-outSec"><div class="periop-outSecTitle">💊 Лекарства</div><ul class="periop-outList">';
+      e.drugsNotes.forEach(function(d){ html += '<li><b>' + escapeHtml(d.label) + '</b> — ' + escapeHtml(d.action) + '</li>'; });
+      html += '</ul></div>';
+    }
+    if (e.hints && e.hints.length){
+      html += '<div class="periop-outSec"><div class="periop-outSecTitle">📌 Примечания</div><ul class="periop-outList">';
+      e.hints.forEach(function(h){ html += '<li>' + escapeHtml(h) + '</li>'; });
+      html += '</ul></div>';
+    }
+    if (!hasUnstable && (!e.recommendations||!e.recommendations.length) && (!e.drugsNotes||!e.drugsNotes.length) && (!e.hints||!e.hints.length) && (!e.stent||!e.stent.note) && (!e.verdict.explanation||!e.verdict.explanation.length)){
+      html += '<div class="periop-outLine" style="color:var(--muted);font-style:italic;font-size:12.5px">Дополнений нет — см. вердикт выше.</div>';
+    }
+    return html;
+  }
+  function buildSurgeonHtml(e){
+    var urgency = val('p_opUrgency');
+    var html = '';
+    html += '<div class="periop-outSec"><div class="periop-outLine"><b>RCRI ' + e.rcri.points + '</b> (' + escapeHtml(e.rcri.classLabel) + ')</div></div>';
+    if (e.drugsNotes && e.drugsNotes.length){
+      html += '<div class="periop-outSec"><div class="periop-outSecTitle">💊 Препараты</div><ul class="periop-outList">';
+      e.drugsNotes.forEach(function(d){
+        var isStop = d.stopDays !== null && d.stopDays !== undefined;
+        var badge = isStop ? ' <span style="color:var(--orange-deep);font-weight:700">⛔ ' + escapeHtml(d.short) + '</span>' : ' <span style="color:var(--green-deep);font-weight:700">✓ ' + escapeHtml(d.short) + '</span>';
+        html += '<li><b>' + escapeHtml(d.label) + '</b>' + badge + '</li>';
+      });
+      html += '</ul></div>';
+    } else {
+      html += '<div class="periop-outSec"><div class="periop-outLine" style="color:var(--muted)">Препараты не отмечены</div></div>';
+    }
+    var specials = [];
+    if (e.stent && e.stent.note) specials.push({t:e.stent.note, warn:(urgency==='urgent'||urgency==='emergency')});
+    if (e.minsFlag) specials.push({t:'После операции — контроль тропонина (MINS, 9.1)', warn:false});
+    if (specials.length){
+      html += '<div class="periop-outSec"><div class="periop-outSecTitle">⚠️ Особое</div><ul class="periop-outList">';
+      specials.forEach(function(s){ html += '<li>' + (s.warn ? '<strong>⚠️ ' + escapeHtml(s.t) + '</strong>' : escapeHtml(s.t)) + '</li>'; });
+      html += '</ul></div>';
+    }
+    return html;
+  }
   function render(e) {
     var v = document.getElementById('p_verdict');
     v.className = 'periop-verdict periop-' + e.verdict.level;
     var icons = {pending:'📝', ok:'✅', caution:'⚠️', defer:'⛔'};
     var ico = icons[e.verdict.level] || '';
     v.innerHTML = '<span style="font-size:18px;line-height:1">' + ico + '</span><span>' + escapeHtml(e.verdict.title) + '</span>';
-    document.getElementById('p_historyOut').textContent = e.historyText;
-    var surgeonOut = document.getElementById('p_surgeonOut');
-    var surgeonHtml = escapeHtml(e.surgeonText);
-    var urgency = val('p_opUrgency');
-    if ((urgency === 'urgent' || urgency === 'emergency') && e.stent && e.stent.note) {
-      var noteEsc = escapeHtml(e.stent.note);
-      surgeonHtml = surgeonHtml.replace(noteEsc, '<strong>⚠️ ' + noteEsc + '</strong>');
-    }
-    surgeonOut.innerHTML = surgeonHtml;
+    _lastHist = e.historyText;
+    _lastSurg = e.surgeonText;
+    document.getElementById('p_historyOut').innerHTML = buildHistoryHtml(e);
+    document.getElementById('p_surgeonOut').innerHTML = buildSurgeonHtml(e);
   }
 
   function setupPeriopCopy(btnId, getText){
@@ -1744,12 +1832,10 @@ body.dark-theme #p_pciRow .periop-card:hover{background:rgba(255,255,255,.08);bo
       if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(function(){done('Скопировано.');}, fallback);} else fallback();
     });
   }
-  setupPeriopCopy('p_copyHistoryBtn', function(){ return document.getElementById('p_historyOut').textContent; });
-  setupPeriopCopy('p_copySurgeonBtn', function(){ return document.getElementById('p_surgeonOut').textContent; });
+  setupPeriopCopy('p_copyHistoryBtn', function(){ return _lastHist; });
+  setupPeriopCopy('p_copySurgeonBtn', function(){ return _lastSurg; });
   document.getElementById('p_copyBtn').addEventListener('click', function () {
-    var historyText = document.getElementById('p_historyOut').textContent;
-    var surgeonText = document.getElementById('p_surgeonOut').textContent;
-    var txt = 'Для истории болезни:\n' + historyText + '\n\nДля хирурга / анестезиолога:\n' + surgeonText;
+    var txt = 'Для истории болезни:\n' + _lastHist + '\n\nДля хирурга / анестезиолога:\n' + _lastSurg;
     var st = document.getElementById('p_copyStatus');
     function done(msg) { st.textContent = msg; setTimeout(function(){ st.textContent=''; }, 3000); }
     function fallback() {
