@@ -20,17 +20,30 @@
 .periop-field{display:flex;flex-direction:column;gap:4px;margin-bottom:10px;font-size:12px;color:var(--muted)}
 .periop-field b{color:var(--text);font-weight:600}
 .periop-field select,.periop-field input[type=number],.periop-field input[type=text],.periop-field input[type=date]{width:100%;max-width:420px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-family:inherit;font-size:13px;background:var(--surface);color:var(--text)}
-.periop-cb{display:flex;align-items:flex-start;gap:8px;padding:5px 0;border-bottom:1px dashed var(--border);font-size:13px}
-.periop-cb input{margin-top:3px;accent-color:var(--primary)}
 .periop-hint{font-size:11px;color:var(--muted);margin-top:2px}
 .periop-sec{font-weight:800;font-size:12.5px;margin:12px 0 6px;color:var(--text)}
 .periop-row{display:flex;gap:12px;flex-wrap:wrap}
-.periop-rcri{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px dashed var(--border);font-size:13px}
-.periop-rcri input{margin:0;accent-color:var(--primary)}
-.periop-rcri .src{margin-left:auto;font-size:11px;color:var(--muted);white-space:nowrap}
 .periop-badge{display:inline-block;background:var(--primary-soft);color:var(--primary);padding:2px 9px;border-radius:20px;font-size:11.5px;font-weight:700}
-.periop-drugAction{display:none;color:var(--text-2);font-size:12px;background:var(--surface-2);border-radius:6px;padding:5px 9px;margin:2px 0 6px 26px}
-.periop-drugItem input:checked ~ .periop-drugAction{display:block}
+/* компактные кликабельные карточки (кнопки) */
+.periop-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:8px;margin:6px 0 10px}
+@media(max-width:560px){.periop-grid{grid-template-columns:1fr}}
+.periop-card{display:flex;align-items:flex-start;gap:9px;padding:8px 11px;border:1.5px solid var(--border);border-radius:10px;cursor:pointer;background:var(--surface-2);transition:border-color .15s,background .15s,transform .08s;font-size:13px;line-height:1.4;user-select:none}
+.periop-card:hover{border-color:var(--primary);background:var(--surface)}
+.periop-card:active{transform:scale(.997)}
+.periop-card input[type="checkbox"]{width:16px;height:16px;flex-shrink:0;margin-top:2px;accent-color:var(--primary);cursor:pointer}
+.periop-card .auto-tag{margin-left:6px}
+.periop-drugItem{display:flex;flex-direction:column;gap:0}
+.periop-drugAction{display:none;color:var(--text-2);font-size:12px;background:var(--surface-2);border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px;padding:7px 10px;margin:-6px 0 0 0;line-height:1.45}
+.periop-drugItem:has(input:checked) .periop-drugAction{display:block}
+@supports selector(:has(*)){
+  .periop-card input[type="checkbox"]{position:absolute;width:0;height:0;opacity:0;margin:0;pointer-events:none}
+  .periop-card:has(input:checked){border-color:var(--primary)!important;background:var(--primary-soft)!important;box-shadow:inset 3px 0 0 var(--primary)!important}
+  .periop-card.auto:has(input:checked){border-color:var(--orange)!important;background:var(--orange-soft)!important;box-shadow:inset 3px 0 0 var(--orange)!important}
+  .periop-card:has(input:disabled){cursor:default}
+}
+body.dark-theme .periop-card{background:rgba(255,255,255,.02);border-color:rgba(255,255,255,.09)}
+body.dark-theme .periop-card:hover{background:rgba(255,255,255,.04);border-color:var(--primary)}
+body.dark-theme .periop-drugAction{background:rgba(255,255,255,.03);border-color:rgba(255,255,255,.09);color:var(--text-2)}
 .periop-verdict{border-radius:10px;padding:11px 14px;margin:10px 0;font-weight:800;font-size:14.5px}
 .periop-ok{background:var(--green-soft);color:var(--green-deep)}
 .periop-caution{background:var(--orange-soft);color:var(--orange-deep)}
@@ -485,19 +498,23 @@
       </div>
 
       <div class="periop-pane" id="p_tab2">
-        <div class="periop-sec">Нестабильные состояния (стоп-признаки)</div>
-        <div class="periop-cb"><input type="checkbox" id="p_uAcs"><div>ОКС: нестабильная стенокардия / ИМ ≤30 дней</div></div>
-        <div class="periop-cb"><input type="checkbox" id="p_uHf"><div>Декомпенсация ХСН</div></div>
-        <div class="periop-cb"><input type="checkbox" id="p_uAsSympt"><div>Симптомный тяжёлый аортальный стеноз <span class="info-icon" id="p_tipAs" style="cursor:help;font-size:15px;opacity:.65;vertical-align:middle">ⓘ</span></div></div>
-        <div class="periop-cb"><input type="checkbox" id="p_uArrhythmia"><div>Значимая симптомная аритмия <span class="info-icon" id="p_tipArrh" style="cursor:help;font-size:15px;opacity:.65;vertical-align:middle">ⓘ</span></div></div>
-        <div class="periop-cb"><input type="checkbox" id="p_uStroke"><div>Недавний инсульт/ТИА или нестабильная ЦВБ</div></div>
-        <div class="periop-sec">Особое (не «стоп», но важно)</div>
-        <div class="periop-cb"><input type="checkbox" id="p_htnSevere"><div>Тяжёлая неконтролируемая АГ ≥180/110 <span class="info-icon" id="p_tipHtn" style="cursor:help;font-size:15px;opacity:.65;vertical-align:middle">ⓘ</span></div></div>
+        <div class="periop-sec">Нестабильные состояния — стоп-признаки</div>
+        <div class="periop-grid">
+          <label class="periop-card"><input type="checkbox" id="p_uAcs"><span>ОКС: нестабильная стенокардия / ИМ ≤30 дн.</span></label>
+          <label class="periop-card"><input type="checkbox" id="p_uHf"><span>Декомпенсация ХСН</span></label>
+          <label class="periop-card"><input type="checkbox" id="p_uAsSympt"><span>Симптомный тяжёлый аортальный стеноз <span class="info-icon" id="p_tipAs" style="cursor:help;font-size:15px;opacity:.65;vertical-align:middle">ⓘ</span></span></label>
+          <label class="periop-card"><input type="checkbox" id="p_uArrhythmia"><span>Значимая симптомная аритмия <span class="info-icon" id="p_tipArrh" style="cursor:help;font-size:15px;opacity:.65;vertical-align:middle">ⓘ</span></span></label>
+          <label class="periop-card"><input type="checkbox" id="p_uStroke"><span>Недавний инсульт / ТИА</span></label>
+        </div>
+        <div class="periop-sec">Особое — не «стоп», но важно</div>
+        <div class="periop-grid">
+          <label class="periop-card"><input type="checkbox" id="p_htnSevere"><span>Тяжёлая АГ ≥180/110 <span class="info-icon" id="p_tipHtn" style="cursor:help;font-size:15px;opacity:.65;vertical-align:middle">ⓘ</span></span></label>
+        </div>
         <div class="periop-field"><b>Известный тяжёлый аортальный стеноз (без симптомов)?</b>
           <select id="p_asKnown"><option value="">не знаю</option><option value="yes">да</option><option value="no">нет</option></select>
         </div>
-        <div class="periop-cb"><input type="checkbox" id="p_pciEver"><div>Было ЧКВ со стентом</div></div>
-        <div class="periop-hide" id="p_pciRow" style="margin:4px 0 0 26px">
+        <label class="periop-card" style="margin:8px 0"><input type="checkbox" id="p_pciEver"><span>Было ЧКВ со стентом</span></label>
+        <div class="periop-hide" id="p_pciRow" style="margin:6px 0 0 0; padding:10px 12px; background:var(--surface-2); border:1px solid var(--border); border-radius:10px">
           <div class="periop-row" style="align-items:flex-end">
             <div class="periop-field" style="min-width:150px" id="p_pciDateField"><b>Дата ЧКВ</b><input type="date" id="p_pciDate"><span class="periop-hint" id="p_pciDateHint" style="display:none;color:var(--orange-deep)"></span> <span class="warning-icon" id="p_pciDateWarn" style="display:none;cursor:help;">⚠️</span></div>
             <div class="periop-field" style="min-width:110px;justify-content:center" id="p_pciGE12Field"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px;font-weight:600"><input type="checkbox" id="p_pciGE12"> ≥12 мес</label><span class="periop-hint">если давно</span></div>
@@ -506,30 +523,32 @@
             </div>
           </div>
           <input type="hidden" id="p_pciMonths" value="">
-          <div class="periop-cb"><input type="checkbox" id="p_pciComplex"><div>Сложное ЧКВ (бифуркации, длинные стенты, многососудистое) или детали неизвестны</div></div>
+          <label class="periop-card" style="margin-top:8px"><input type="checkbox" id="p_pciComplex"><span>Сложное ЧКВ (бифуркации, длинные стенты, многососудистое) или детали неизвестны</span></label>
         </div>
-        <div class="periop-field" id="p_hba1cRow"><b>HbA1c измерялся за последние 3 месяца?</b>
+        <div class="periop-field" id="p_hba1cRow" style="margin-top:10px"><b>HbA1c за последние 3 мес?</b>
           <select id="p_hba1cRecent"><option value="yes">Да</option><option value="no">Нет / не знаю</option></select>
         </div>
       </div>
 
       <div class="periop-pane" id="p_tab3">
         <div class="periop-sec">RCRI <span class="periop-badge" id="p_rcriBadge">0 · I (низкий)</span> <span class="info-icon" id="p_tipRcri" style="cursor:help;font-size:15px;opacity:.65;vertical-align:middle">ⓘ</span></div>
-        <div class="periop-rcri"><input type="checkbox" id="p_rIhd" disabled><span>ИБС (инфаркт/стенокардия)</span><span class="src">авто: ИМ / сосудистое</span></div>
-        <div class="periop-rcri"><input type="checkbox" id="p_rCvd" disabled><span>ЦВБ (инсульт/ТИА)</span><span class="src">авто: инсульт / ТИА</span></div>
-        <div class="periop-rcri"><input type="checkbox" id="p_rHf" disabled><span>ХСН в анамнезе</span><span class="src">авто</span></div>
-        <div class="periop-rcri"><input type="checkbox" id="p_rDmInsulin"><span>СД на инсулине <span class="info-icon" id="p_tipDm" style="cursor:help;font-size:14px;opacity:.65;vertical-align:middle">ⓘ</span> <span class="warning-icon" id="p_dmWarn" style="display:none;cursor:help;">⚠️</span></span><span class="src">ручной</span></div>
-        <div class="periop-rcri"><input type="checkbox" id="p_rCrea" disabled><span>Креатинин ≥177 мкмоль/л</span><span class="src">авто</span></div>
-        <div class="periop-rcri"><input type="checkbox" id="p_rHigh" disabled><span>Высокорисковая операция</span><span class="src">авто: тип операции</span></div>
+        <div class="periop-grid">
+          <label class="periop-card auto"><input type="checkbox" id="p_rIhd" disabled><span>ИБС <span style="color:var(--muted);font-weight:400">инфаркт/стенокардия</span> <span class="auto-tag">авто</span></span></label>
+          <label class="periop-card auto"><input type="checkbox" id="p_rCvd" disabled><span>ЦВБ <span style="color:var(--muted);font-weight:400">инсульт/ТИА</span> <span class="auto-tag">авто</span></span></label>
+          <label class="periop-card auto"><input type="checkbox" id="p_rHf" disabled><span>ХСН <span class="auto-tag">авто</span></span></label>
+          <label class="periop-card"><input type="checkbox" id="p_rDmInsulin"><span>СД на инсулине <span class="info-icon" id="p_tipDm" style="cursor:help;font-size:14px;opacity:.65;vertical-align:middle">ⓘ</span> <span class="warning-icon" id="p_dmWarn" style="display:none;cursor:help;">⚠️</span></span></label>
+          <label class="periop-card auto"><input type="checkbox" id="p_rCrea" disabled><span>Креатинин ≥177 <span class="auto-tag">авто</span></span></label>
+          <label class="periop-card auto"><input type="checkbox" id="p_rHigh" disabled><span>Высокорисковая операция <span class="auto-tag">авто</span></span></label>
+        </div>
         <div class="periop-hint" style="margin:6px 0">Класс: 0 — I (низкий) · 1 — II (умеренный) · 2 — III (высокий) · ≥3 — IV (очень высокий)</div>
-        <div class="periop-field"><b>Поднимается на 2 лестничных пролёта / проходит квартал? (≥4 METs) <span class="info-icon" id="p_tipMet" style="cursor:help;font-size:15px;opacity:.65;vertical-align:middle">ⓘ</span></b>
+        <div class="periop-field"><b>≥4 METs? Поднимается на 2 пролёта? <span class="info-icon" id="p_tipMet" style="cursor:help;font-size:15px;opacity:.65;vertical-align:middle">ⓘ</span></b>
           <select id="p_met4"><option value="">не знаю</option><option value="yes">Да</option><option value="no">Нет</option></select>
         </div>
       </div>
 
       <div class="periop-pane" id="p_tab4">
-        <div class="periop-hint" style="margin-bottom:6px">Отметьте, что пациент принимает. Действие появится сразу и попадёт в заключение.</div>
-        <div id="p_drugList"></div>
+        <div class="periop-hint" style="margin-bottom:6px">Отметьте, что принимает — подсказка появится сразу и попадёт в заключение.</div>
+        <div id="p_drugList" class="periop-grid"></div>
       </div>
 
       <div class="periop-pane" id="p_tab5">
@@ -1489,7 +1508,7 @@
   DATA.DRUGS.forEach(function (d) {
     var div = document.createElement('div');
     div.className = 'periop-drugItem';
-    div.innerHTML = '<div class="periop-cb"><input type="checkbox" class="p_drug" value="' + d.id + '" id="p_drug_' + d.id + '"><div>' + d.label + '</div></div>' +
+    div.innerHTML = '<label class="periop-card" style="margin:0"><input type="checkbox" class="p_drug" value="' + d.id + '" id="p_drug_' + d.id + '"><span>' + d.label + '</span></label>' +
       '<div class="periop-drugAction">' + d.action + '</div>';
     drugList.appendChild(div);
   });
@@ -1730,6 +1749,14 @@
       if (el) window.setupTooltipTrigger(el, TIPS[id]);
     });
   }
+
+  // Клик по иконкам-подсказкам внутри карточки не должен переключать чекбокс
+  document.addEventListener('click', function(e){
+    if (e.target.closest('.periop-card .info-icon') || e.target.closest('.periop-card .warning-icon')) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  });
 
   window.periopUpdate = update;
   window.periopBuild = build;
