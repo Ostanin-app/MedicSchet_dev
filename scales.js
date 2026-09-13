@@ -676,7 +676,8 @@ function updateFieldVisibility() {
     wells:   isScaleActive('wells'),
     geneva:  isScaleActive('geneva'),
     precise: isScaleActive('precise'),
-    score2:  isScaleActive('score2')
+    score2:  isScaleActive('score2'),
+    periop:  isScaleActive('periop')
   };
 
   function setVisible(className, condition) {
@@ -688,7 +689,7 @@ function updateFieldVisibility() {
 
   var anyScale = active.ckdepi || active.cg || active.grace || active.crusade ||
                  active.archbr || active.hasbled || active.cha2ds2 || active.caprini ||
-                 active.pesi || active.wells || active.geneva || active.precise || active.score2;
+                 active.pesi || active.wells || active.geneva || active.precise || active.score2 || active.periop;
   var needAge    = anyScale;
   var noScaleHint = document.getElementById('noScaleHint');
   if (noScaleHint) noScaleHint.style.display = anyScale ? 'none' : '';
@@ -697,18 +698,18 @@ function updateFieldVisibility() {
   var needWeight = active.cg || active.caprini || active.crusade || active.precise;
   var needSBP    = active.grace || active.crusade || active.hasbled || active.pesi || active.score2;
   var needHR     = active.grace || active.crusade || active.pesi || active.wells || active.geneva;
-  var needCreat  = active.ckdepi || active.cg || active.grace || active.archbr || active.hasbled || active.crusade || active.precise || active.score2;
+  var needCreat  = active.ckdepi || active.cg || active.grace || active.archbr || active.hasbled || active.crusade || active.precise || active.score2 || active.periop;
   var needHB     = active.archbr || active.precise;
   var needHCT    = active.crusade;
   var needPLT    = active.archbr;
 
-  var needDM       = active.crusade || active.cha2ds2 || active.score2;
-  var needHF       = active.crusade || active.cha2ds2 || active.caprini || active.pesi;
+  var needDM       = active.crusade || active.cha2ds2 || active.score2 || active.periop;
+  var needHF       = active.crusade || active.cha2ds2 || active.caprini || active.pesi || active.periop;
   var needHTN      = active.cha2ds2;
-  var needStroke   = active.hasbled || active.cha2ds2;
+  var needStroke   = active.hasbled || active.cha2ds2 || active.periop;
   var needEmb      = active.cha2ds2;
   var needVte      = active.caprini || active.wells || active.geneva;
-  var needVasc     = active.crusade || active.cha2ds2;
+  var needVasc     = active.crusade || active.cha2ds2 || active.periop;
   var needVerapamil = active.cg;
 
   // Поля модуля «СС-риск и липиды»: HbA1c и возраст дебюта СД видны только при диабете
@@ -735,16 +736,17 @@ function updateFieldVisibility() {
   setVisible('field-vte',      needVte);
   setVisible('field-vasc',     needVasc);
   setVisible('field-verapamil', needVerapamil);
-  // Чекбоксы, используемые только в поликлиническом режиме (модуль СС-риск и липиды)
+  // Чекбоксы, используемые только в модуле «СС-риск и липиды» (SCORE2) — НЕ показываем при periop
   var isOutpatient = (typeof getCurrentMode === 'function') && getCurrentMode() === 'outpatient';
-  setVisible('field-mi',       isOutpatient && anyScale);
-  setVisible('field-sghs',     isOutpatient && anyScale);
-  setVisible('field-fh-cvd',   isOutpatient && anyScale);
-  setVisible('field-fh-lip',   isOutpatient && anyScale);
-  setVisible('field-asb50',    isOutpatient && anyScale);
-  setVisible('field-ath25',    isOutpatient && anyScale);
-  setVisible('field-gosghs',   isOutpatient && anyScale);
-  setVisible('field-dm-tod',   isOutpatient && anyScale);
+  var score2Active = active.score2;
+  setVisible('field-mi',       isOutpatient && score2Active);
+  setVisible('field-sghs',     isOutpatient && score2Active);
+  setVisible('field-fh-cvd',   isOutpatient && score2Active);
+  setVisible('field-fh-lip',   isOutpatient && score2Active);
+  setVisible('field-asb50',    isOutpatient && score2Active);
+  setVisible('field-ath25',    isOutpatient && score2Active);
+  setVisible('field-gosghs',   isOutpatient && score2Active);
+  setVisible('field-dm-tod',   isOutpatient && score2Active);
 
   // Внутри блока SCORE2: HbA1c и дебют СД — только при отмеченном диабете
   setVisible('field-hba1c',    needHba1c);
@@ -756,7 +758,7 @@ function updateFieldVisibility() {
   var dmAge20El = document.getElementById('dm_age20');
   if (dmAgeEl && dmAge20El) dmAgeEl.disabled = !!dmAge20El.checked;
 
-  var anyCheckboxVisible = needDM || needHF || needHTN || needStroke || needEmb || needVte || needVasc || needVerapamil || (isOutpatient && anyScale);
+  var anyCheckboxVisible = needDM || needHF || needHTN || needStroke || needEmb || needVte || needVasc || needVerapamil || (isOutpatient && score2Active);
   var divider = document.querySelector('.divider');
   if (divider) divider.style.display = anyCheckboxVisible ? '' : 'none';
 }

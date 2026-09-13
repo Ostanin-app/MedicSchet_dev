@@ -464,6 +464,28 @@ function getPeriopVisible() {
 function savePeriopVisible(v) {
   try { localStorage.setItem(PERIOP_VISIBLE_KEY, v ? '1' : '0'); } catch (e) {}
 }
+// Единое переключение видимости модуля «Перед операцией» из любой точки входа
+// (кнопка 🩺 в группе или чекбокс в строке шкал). Синхронизирует блок, кнопку и чекбокс.
+function setPeriopVisible(v) {
+  savePeriopVisible(v);
+  var block = document.getElementById('periopBlock');
+  var btn = document.getElementById('periopGroupBtn');
+  var chk = document.getElementById('scale_periop');
+  var lbl = document.getElementById('toggle_periop');
+  if (block) block.style.display = v ? '' : 'none';
+  if (btn) btn.classList.toggle('active', v);
+  if (chk) chk.checked = v;
+  if (lbl) lbl.classList.toggle('active', v);
+  updateGroupButtonsUI();
+}
+// Обработчик чекбокса в строке шкал «Активные шкалы»
+function toggleScalePeriop(el) {
+  setPeriopVisible(el.checked);
+  if (el.checked) {
+    var block = document.getElementById('periopBlock');
+    if (block) block.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
 function togglePeriopBlock() {
   var block = document.getElementById('periopBlock');
   var btn = document.getElementById('periopGroupBtn');
@@ -472,18 +494,15 @@ function togglePeriopBlock() {
   if (getCurrentMode() !== 'outpatient') {
     saveCurrentModeScales();
     saveMode('outpatient');
-    savePeriopVisible(true);
+    setPeriopVisible(true);
     applyMode();
     clearResultsForModeChange('outpatient');
     if (block) block.scrollIntoView({ behavior: 'smooth', block: 'start' });
     return;
   }
   var nowVisible = block.style.display !== 'none';
-  var nextVisible = !nowVisible;
-  block.style.display = nextVisible ? '' : 'none';
-  btn.classList.toggle('active', nextVisible);
-  savePeriopVisible(nextVisible);
-  if (nextVisible) block.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  setPeriopVisible(!nowVisible);
+  if (block && block.style.display !== 'none') block.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 // Применяет текущий режим ко всей странице:
@@ -543,16 +562,24 @@ function applyMode() {
     b.style.display = (mode === 'outpatient') ? '' : 'none';
   });
 
-  // Модуль «Перед операцией» — только в поликлинике, управляется кнопкой 🩺
+  // Модуль «Перед операцией» — только в поликлинике, управляется кнопкой 🩺 и чекбоксом в строке шкал
   var periopBlock = document.getElementById('periopBlock');
   var periopBtn = document.getElementById('periopGroupBtn');
+  var periopChk = document.getElementById('scale_periop');
+  var periopToggle = document.getElementById('toggle_periop');
   var periopVisible = getPeriopVisible();
   if (mode === 'outpatient') {
     if (periopBlock) periopBlock.style.display = periopVisible ? '' : 'none';
     if (periopBtn) periopBtn.classList.toggle('active', periopVisible);
+    if (periopToggle) periopToggle.style.display = '';
+    if (periopChk) periopChk.checked = periopVisible;
+    if (periopToggle) periopToggle.classList.toggle('active', periopVisible);
   } else {
     if (periopBlock) periopBlock.style.display = 'none';
     if (periopBtn) periopBtn.classList.remove('active');
+    if (periopToggle) periopToggle.style.display = 'none';
+    if (periopChk) periopChk.checked = false;
+    if (periopToggle) periopToggle.classList.remove('active');
   }
 
   // 6. Видимость полей и панель анализа
@@ -1123,6 +1150,7 @@ function updateCalcButtonWarnings(warnings) {
 
 document.getElementById('clearScalesBtn').addEventListener('click', function() {
   document.querySelectorAll('#scaleSelector input[type="checkbox"]').forEach(function(cb) {
+    if (cb.id === 'scale_periop') { setPeriopVisible(false); return; } // periop: единый сброс (чекбокс + кнопка 🩺 + блок)
     cb.checked = false;
     var name = cb.id.replace('scale_','');
     toggleScale(name, cb);
